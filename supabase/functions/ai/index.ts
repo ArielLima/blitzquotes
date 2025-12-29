@@ -1,7 +1,8 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
 const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
-const MODEL = 'openai/gpt-5-mini';
+const MODEL = 'openai/gpt-4o-mini';
+const VISION_MODEL = 'openai/gpt-4o-mini';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,7 +17,7 @@ interface PricebookItem {
   price: number;
 }
 
-async function callOpenRouter(messages: { role: string; content: string }[]): Promise<string> {
+async function callOpenRouter(messages: any[], model: string = MODEL): Promise<string> {
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -26,7 +27,7 @@ async function callOpenRouter(messages: { role: string; content: string }[]): Pr
       'X-Title': 'BlitzQuotes',
     },
     body: JSON.stringify({
-      model: MODEL,
+      model,
       messages,
     }),
   });
@@ -47,6 +48,12 @@ function parseJSONFromResponse(content: string): any {
     return JSON.parse(codeBlockMatch[1].trim());
   }
 
+  // Try to find object in response
+  const objectMatch = content.match(/\{[\s\S]*\}/);
+  if (objectMatch) {
+    return JSON.parse(objectMatch[0]);
+  }
+
   // Try to find array in response
   const arrayMatch = content.match(/\[[\s\S]*\]/);
   if (arrayMatch) {
@@ -55,6 +62,57 @@ function parseJSONFromResponse(content: string): any {
 
   // Try parsing the whole thing
   return JSON.parse(content);
+}
+
+async function analyzePriceTag(imageBase64: string, trade: string) {
+  const messages = [
+    {
+      role: 'system',
+      content: `You are helping a ${trade} contractor add items to their pricebook from price tag photos.
+
+Extract the following from the price tag image:
+- Item name (be specific, include brand, size, model if visible)
+- Price (the retail/store price shown)
+- Category: one of "materials", "labor", "equipment", or "fees"
+- Unit: one of "each", "hour", "foot", "sqft", "job", "gallon", "lb"
+
+Make intelligent guesses based on the product type:
+- Building materials, parts, fixtures → "materials"
+- Tools, machinery → "equipment"
+- Most items are "each" unless the price is clearly per foot, gallon, pound, etc.
+
+Return ONLY valid JSON, no explanation.`,
+    },
+    {
+      role: 'user',
+      content: [
+        {
+          type: 'text',
+          text: `Analyze this price tag and extract item details.
+
+Return JSON:
+{
+  "name": "Full item name with brand/size if visible",
+  "price": 29.99,
+  "category": "materials|labor|equipment|fees",
+  "unit": "each|hour|foot|sqft|job|gallon|lb",
+  "confidence": "high|medium|low"
+}
+
+If you can't read the price tag clearly, set confidence to "low" and make your best guess.`,
+        },
+        {
+          type: 'image_url',
+          image_url: {
+            url: `data:image/jpeg;base64,${imageBase64}`,
+          },
+        },
+      ],
+    },
+  ];
+
+  const content = await callOpenRouter(messages, VISION_MODEL);
+  return parseJSONFromResponse(content);
 }
 
 async function generateQuote(
@@ -170,6 +228,9 @@ serve(async (req) => {
         break;
       case 'generate_pricebook':
         result = await generatePricebook(params.trade, params.zip_code);
+        break;
+      case 'analyze_price_tag':
+        result = await analyzePriceTag(params.image, params.trade);
         break;
       default:
         throw new Error(`Unknown action: ${action}`);
