@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
 const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
-const MODEL = 'anthropic/claude-3-haiku';
+const MODEL = 'openai/gpt-5-mini';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
