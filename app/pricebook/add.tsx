@@ -114,18 +114,19 @@ export default function AddPriceScreen() {
   const [category, setCategory] = useState('materials');
   const [unit, setUnit] = useState('each');
   const [cost, setCost] = useState('');
-  const [region, setRegion] = useState(settings?.state || 'TX');
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
 
   const [categoryPickerVisible, setCategoryPickerVisible] = useState(false);
   const [unitPickerVisible, setUnitPickerVisible] = useState(false);
-  const [regionPickerVisible, setRegionPickerVisible] = useState(false);
+
+  // Use region from settings (set during onboarding, editable in settings)
+  const region = settings?.state || 'TX';
+  const regionLabel = getRegions().find(r => r.value === region)?.label || region;
 
   const selectedCategory = CATEGORIES.find(c => c.id === category);
   const selectedUnit = UNITS.find(u => u.id === unit);
-  const selectedRegion = getRegions().find(r => r.value === region);
 
   const isValid = name.trim().length > 0 && cost.length > 0 && parseFloat(cost) > 0;
 
@@ -349,28 +350,27 @@ export default function AddPriceScreen() {
             </View>
           )}
 
-          {/* Region */}
+          {/* Region Indicator (from Settings) */}
           <View style={styles.field}>
             <Text style={[styles.label, { color: isDark ? '#D1D5DB' : '#374151' }]}>
               Region
             </Text>
-            <TouchableOpacity
+            <View
               style={[
-                styles.dropdown,
+                styles.regionIndicator,
                 {
                   backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
                   borderColor: isDark ? '#374151' : '#E5E7EB',
                 },
-              ]}
-              onPress={() => setRegionPickerVisible(true)}>
-              <View style={styles.dropdownContent}>
-                <FontAwesome name="map-marker" size={16} color="#3B82F6" style={styles.dropdownIcon} />
-                <Text style={[styles.dropdownText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                  {selectedRegion?.label || 'Select region'}
-                </Text>
-              </View>
-              <FontAwesome name="chevron-down" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
-            </TouchableOpacity>
+              ]}>
+              <FontAwesome name="map-marker" size={16} color="#3B82F6" style={styles.dropdownIcon} />
+              <Text style={[styles.dropdownText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                {regionLabel}
+              </Text>
+            </View>
+            <Text style={[styles.helpText, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+              Change region in Settings
+            </Text>
           </View>
 
           {/* Name */}
@@ -512,15 +512,6 @@ export default function AddPriceScreen() {
         onSelect={setUnit}
         isDark={isDark}
       />
-      <PickerModal
-        visible={regionPickerVisible}
-        onClose={() => setRegionPickerVisible(false)}
-        title="Select Region"
-        options={getRegions()}
-        selected={region}
-        onSelect={setRegion}
-        isDark={isDark}
-      />
     </>
   );
 }
@@ -633,6 +624,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  regionIndicator: {
+    height: 50,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   dropdownContent: {
     flexDirection: 'row',

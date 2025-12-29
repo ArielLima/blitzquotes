@@ -10,11 +10,17 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Modal,
+  FlatList,
+  ScrollView,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
+import { getRegions } from '@/lib/blitzprices';
+import { PAYMENT_METHODS } from '@/lib/payments';
+import type { PaymentMethod } from '@/types';
 
 export default function OnboardingBusinessScreen() {
   const colorScheme = useColorScheme();
@@ -23,10 +29,23 @@ export default function OnboardingBusinessScreen() {
   const { user, setSettings, setIsOnboarded } = useStore();
 
   const [businessName, setBusinessName] = useState('');
+  const [state, setState] = useState('');
   const [zipCode, setZipCode] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('none');
   const [loading, setLoading] = useState(false);
+  const [statePickerVisible, setStatePickerVisible] = useState(false);
+  const [paymentPickerVisible, setPaymentPickerVisible] = useState(false);
 
-  const isValid = businessName.trim().length > 0 && /^\d{5}$/.test(zipCode);
+  const regions = getRegions();
+  const selectedState = regions.find(r => r.value === state);
+  const selectedPayment = PAYMENT_METHODS[paymentMethod];
+
+  const paymentOptions = Object.entries(PAYMENT_METHODS).map(([key, val]) => ({
+    value: key as PaymentMethod,
+    label: val.label,
+  }));
+
+  const isValid = businessName.trim().length > 0 && state.length > 0;
 
   const handleFinish = async () => {
     if (!user || !isValid) return;
@@ -39,10 +58,14 @@ export default function OnboardingBusinessScreen() {
           user_id: user.id,
           trade: trade || 'general',
           business_name: businessName.trim(),
-          zip_code: zipCode,
+          state: state,
+          zip_code: zipCode || null,
           default_tax_rate: 0,
+          contractor_discount: 0,  // Can be set up later in Settings
           default_markup: 0.35,
-          payment_method: 'none',
+          material_markup: 0.35,
+          labor_rate: 100,
+          payment_method: paymentMethod,
         })
         .select()
         .single();
@@ -80,7 +103,7 @@ export default function OnboardingBusinessScreen() {
         </Text>
       </View>
 
-      <View style={styles.form}>
+      <ScrollView style={styles.form} contentContainerStyle={styles.formContent} showsVerticalScrollIndicator={false}>
         <View style={styles.inputContainer}>
           <Text style={[styles.label, { color: isDark ? '#D1D5DB' : '#374151' }]}>
             Business Name
@@ -104,10 +127,40 @@ export default function OnboardingBusinessScreen() {
 
         <View style={styles.inputContainer}>
           <Text style={[styles.label, { color: isDark ? '#D1D5DB' : '#374151' }]}>
+            State
+          </Text>
+          <Text style={[styles.labelHint, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+            Used for regional pricing
+          </Text>
+          <TouchableOpacity
+            style={[
+              styles.dropdown,
+              {
+                backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                borderColor: isDark ? '#374151' : '#E5E7EB',
+              },
+            ]}
+            onPress={() => setStatePickerVisible(true)}>
+            <View style={styles.dropdownContent}>
+              <FontAwesome name="map-marker" size={18} color="#3B82F6" style={styles.dropdownIcon} />
+              <Text
+                style={[
+                  styles.dropdownText,
+                  { color: selectedState ? (isDark ? '#FFFFFF' : '#111827') : (isDark ? '#6B7280' : '#9CA3AF') },
+                ]}>
+                {selectedState?.label || 'Select your state'}
+              </Text>
+            </View>
+            <FontAwesome name="chevron-down" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={[styles.label, { color: isDark ? '#D1D5DB' : '#374151' }]}>
             ZIP Code
           </Text>
           <Text style={[styles.labelHint, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
-            Used for regional pricing estimates
+            Optional - for more accurate pricing
           </Text>
           <TextInput
             style={[
@@ -127,13 +180,43 @@ export default function OnboardingBusinessScreen() {
             maxLength={5}
           />
         </View>
-      </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={[styles.label, { color: isDark ? '#D1D5DB' : '#374151' }]}>
+            How would you like to be paid?
+          </Text>
+          <Text style={[styles.labelHint, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+            Optional - can set up later in Settings
+          </Text>
+          <TouchableOpacity
+            style={[
+              styles.dropdown,
+              {
+                backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                borderColor: isDark ? '#374151' : '#E5E7EB',
+              },
+            ]}
+            onPress={() => setPaymentPickerVisible(true)}>
+            <View style={styles.dropdownContent}>
+              <FontAwesome name="credit-card" size={18} color="#10B981" style={styles.dropdownIcon} />
+              <Text
+                style={[
+                  styles.dropdownText,
+                  { color: isDark ? '#FFFFFF' : '#111827' },
+                ]}>
+                {selectedPayment?.shortLabel || selectedPayment?.label || 'Select payment method'}
+              </Text>
+            </View>
+            <FontAwesome name="chevron-down" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
 
       <View style={styles.footer}>
         <View style={[styles.infoBox, { backgroundColor: isDark ? '#1F2937' : '#EFF6FF' }]}>
-          <FontAwesome name="lightbulb-o" size={20} color="#3B82F6" />
+          <FontAwesome name="database" size={20} color="#3B82F6" />
           <Text style={[styles.infoText, { color: isDark ? '#9CA3AF' : '#1E40AF' }]}>
-            Your pricebook will build automatically as you create quotes. No setup needed!
+            Get real material prices from contractors in your area with BlitzPrices
           </Text>
         </View>
 
@@ -154,6 +237,84 @@ export default function OnboardingBusinessScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* State Picker Modal */}
+      <Modal visible={statePickerVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                Select State
+              </Text>
+              <TouchableOpacity onPress={() => setStatePickerVisible(false)}>
+                <FontAwesome name="times" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={regions}
+              keyExtractor={(item) => item.value}
+              style={styles.modalList}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.modalOption,
+                    state === item.value && { backgroundColor: isDark ? '#374151' : '#F3F4F6' },
+                  ]}
+                  onPress={() => {
+                    setState(item.value);
+                    setStatePickerVisible(false);
+                  }}>
+                  <Text style={[styles.modalOptionText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                    {item.label}
+                  </Text>
+                  {state === item.value && (
+                    <FontAwesome name="check" size={16} color="#3B82F6" />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Payment Method Picker Modal */}
+      <Modal visible={paymentPickerVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                Payment Method
+              </Text>
+              <TouchableOpacity onPress={() => setPaymentPickerVisible(false)}>
+                <FontAwesome name="times" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={paymentOptions}
+              keyExtractor={(item) => item.value}
+              style={styles.modalList}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.modalOption,
+                    paymentMethod === item.value && { backgroundColor: isDark ? '#374151' : '#F3F4F6' },
+                  ]}
+                  onPress={() => {
+                    setPaymentMethod(item.value);
+                    setPaymentPickerVisible(false);
+                  }}>
+                  <Text style={[styles.modalOptionText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                    {item.label}
+                  </Text>
+                  {paymentMethod === item.value && (
+                    <FontAwesome name="check" size={16} color="#3B82F6" />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -191,7 +352,10 @@ const styles = StyleSheet.create({
   form: {
     flex: 1,
     paddingHorizontal: 24,
+  },
+  formContent: {
     gap: 24,
+    paddingBottom: 24,
   },
   inputContainer: {
     gap: 8,
@@ -247,5 +411,60 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '600',
+  },
+  dropdown: {
+    height: 56,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dropdownContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  dropdownIcon: {
+    marginRight: 12,
+  },
+  dropdownText: {
+    fontSize: 17,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  modalList: {
+    paddingBottom: 40,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    paddingHorizontal: 20,
+  },
+  modalOptionText: {
+    fontSize: 16,
   },
 });

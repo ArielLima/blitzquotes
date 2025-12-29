@@ -8,8 +8,6 @@ import {
   useColorScheme,
   TextInput,
   ActivityIndicator,
-  Modal,
-  ScrollView,
 } from 'react-native';
 import { Link } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -82,60 +80,6 @@ function PriceCard({ item }: { item: BlitzPricesResult }) {
   );
 }
 
-function RegionPicker({
-  visible,
-  selected,
-  onSelect,
-  onClose,
-}: {
-  visible: boolean;
-  selected: string;
-  onSelect: (region: string) => void;
-  onClose: () => void;
-}) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const regions = getRegions();
-
-  return (
-    <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-              Select Region
-            </Text>
-            <TouchableOpacity onPress={onClose}>
-              <FontAwesome name="times" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
-            </TouchableOpacity>
-          </View>
-          <ScrollView style={styles.modalScroll}>
-            {regions.map((region) => (
-              <TouchableOpacity
-                key={region.value}
-                style={[
-                  styles.modalOption,
-                  selected === region.value && { backgroundColor: isDark ? '#374151' : '#F3F4F6' },
-                ]}
-                onPress={() => {
-                  onSelect(region.value);
-                  onClose();
-                }}>
-                <Text style={[styles.modalOptionText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                  {region.label}
-                </Text>
-                {selected === region.value && (
-                  <FontAwesome name="check" size={16} color="#3B82F6" />
-                )}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
 function EmptyState({ hasSearched }: { hasSearched: boolean }) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -200,9 +144,9 @@ export default function PricesScreen() {
   const isDark = colorScheme === 'dark';
   const { settings } = useStore();
 
-  // Default to TX if no zip/state in settings, or derive from zip later
-  const [selectedRegion, setSelectedRegion] = useState(settings?.state || 'TX');
-  const [showRegionPicker, setShowRegionPicker] = useState(false);
+  // Use state from settings (set during onboarding, editable in settings)
+  const region = settings?.state || 'TX';
+  const regionLabel = getRegions().find(r => r.value === region)?.label || region;
 
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -222,7 +166,7 @@ export default function PricesScreen() {
     setError(null);
 
     try {
-      const response = await searchBlitzPrices(search.trim(), selectedRegion, {
+      const response = await searchBlitzPrices(search.trim(), region, {
         category: selectedCategory as any,
         limit: 20,
       });
@@ -235,7 +179,7 @@ export default function PricesScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, selectedRegion, selectedCategory]);
+  }, [search, region, selectedCategory]);
 
   const handleSearchSubmit = () => {
     performSearch();
@@ -245,16 +189,13 @@ export default function PricesScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
-      {/* Region Selector */}
-      <TouchableOpacity
-        style={[styles.regionSelector, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
-        onPress={() => setShowRegionPicker(true)}>
+      {/* Region Indicator (set in Settings) */}
+      <View style={[styles.regionIndicator, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
         <FontAwesome name="map-marker" size={14} color="#3B82F6" />
         <Text style={[styles.regionText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-          {getRegions().find(r => r.value === selectedRegion)?.label || selectedRegion}
+          {regionLabel}
         </Text>
-        <FontAwesome name="chevron-down" size={12} color={isDark ? '#6B7280' : '#9CA3AF'} />
-      </TouchableOpacity>
+      </View>
 
       {/* Search */}
       <View style={styles.searchContainer}>
@@ -364,14 +305,6 @@ export default function PricesScreen() {
           <FontAwesome name="plus" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </Link>
-
-      {/* Region Picker Modal */}
-      <RegionPicker
-        visible={showRegionPicker}
-        selected={selectedRegion}
-        onSelect={setSelectedRegion}
-        onClose={() => setShowRegionPicker(false)}
-      />
     </View>
   );
 }
@@ -380,7 +313,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  regionSelector: {
+  regionIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
@@ -603,41 +536,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    maxHeight: '70%',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 34,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  modalScroll: {
-    maxHeight: 400,
-  },
-  modalOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  modalOptionText: {
-    fontSize: 16,
   },
 });

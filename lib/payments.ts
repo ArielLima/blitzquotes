@@ -2,8 +2,10 @@ import type { PaymentMethod, UserSettings } from '../types';
 
 interface PaymentConfig {
   label: string;
+  shortLabel?: string;  // For display in settings (without "Recommended" etc)
   icon: string;
   placeholder: string;
+  helpText?: string;
   detailsLabel?: string;
   detailsPlaceholder?: string;
   buildUrl: (link: string, amount: number, details?: string) => string | null;
@@ -13,8 +15,10 @@ interface PaymentConfig {
 export const PAYMENT_METHODS: Record<PaymentMethod, PaymentConfig> = {
   stripe: {
     label: 'Stripe (Recommended)',
+    shortLabel: 'Stripe',
     icon: 'credit-card',
     placeholder: 'https://buy.stripe.com/xxx',
+    helpText: 'Go to Stripe Dashboard → Payment Links → Create',
     buildUrl: (link, amount) => {
       // Stripe Payment Links can accept amount as query param
       // Format: https://buy.stripe.com/xxx?line_items[0][quantity]=1
@@ -26,6 +30,7 @@ export const PAYMENT_METHODS: Record<PaymentMethod, PaymentConfig> = {
     label: 'Venmo',
     icon: 'smartphone',
     placeholder: 'your-venmo-username',
+    helpText: 'Your Venmo username (without the @)',
     buildUrl: (link, amount) => {
       // Venmo deep link format
       const username = link.replace('@', '');
@@ -36,6 +41,7 @@ export const PAYMENT_METHODS: Record<PaymentMethod, PaymentConfig> = {
     label: 'PayPal',
     icon: 'dollar-sign',
     placeholder: 'https://paypal.me/yourusername',
+    helpText: 'Go to paypal.me to create your link',
     buildUrl: (link, amount) => {
       // PayPal.me links can include amount
       const baseUrl = link.endsWith('/') ? link : `${link}/`;
@@ -46,6 +52,7 @@ export const PAYMENT_METHODS: Record<PaymentMethod, PaymentConfig> = {
     label: 'Cash App',
     icon: 'dollar-sign',
     placeholder: '$yourcashtag',
+    helpText: 'Your $cashtag from Cash App profile',
     buildUrl: (link, amount) => {
       // Cash App link format
       const cashtag = link.replace('$', '');
@@ -56,6 +63,7 @@ export const PAYMENT_METHODS: Record<PaymentMethod, PaymentConfig> = {
     label: 'Zelle',
     icon: 'send',
     placeholder: 'Not needed for Zelle',
+    helpText: 'Enter the email or phone linked to Zelle',
     detailsLabel: 'Zelle Email or Phone',
     detailsPlaceholder: 'email@example.com or (555) 123-4567',
     buildUrl: () => null, // Zelle doesn't have deep links
@@ -66,6 +74,7 @@ export const PAYMENT_METHODS: Record<PaymentMethod, PaymentConfig> = {
     label: 'Square',
     icon: 'square',
     placeholder: 'https://square.link/xxx',
+    helpText: 'Go to Square Dashboard → Online Checkout → Links',
     buildUrl: (link) => link, // Square links work as-is
   },
   none: {

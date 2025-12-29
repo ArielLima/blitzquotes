@@ -1,20 +1,102 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
-const MODEL = 'openai/gpt-4o-mini';
-const VISION_MODEL = 'openai/gpt-4o-mini';
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+// IMPORTANT: Always use gpt-5-mini for all AI calls. Do not change this.
+const MODEL = 'openai/gpt-5-mini';
+const VISION_MODEL = 'openai/gpt-5-mini';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface PricebookItem {
-  id: string;
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+
+interface BlitzPricesItem {
   name: string;
   category: string;
   unit: string;
-  price: number;
+  avg_cost: number;
+  min_cost: number;
+  max_cost: number;
+  sample_size: number;
+  confidence: 'high' | 'medium' | 'low';
+}
+
+interface UserSettings {
+  labor_rate: number;
+  helper_rate?: number;
+  contractor_discount: number;  // e.g., 0.15 for 15% off retail
+  material_markup: number;
+  equipment_markup?: number;
+  fee_markup?: number;
+  default_tax_rate: number;
+  state?: string;
+}
+
+// Search BlitzPrices for items matching a search term
+async function searchBlitzPrices(query: string, region: string): Promise<BlitzPricesItem[]> {
+  const { data, error } = await supabase.rpc('search_blitzprices', {
+    search_query: query,
+    search_region: region || 'US',
+    result_limit: 5,
+  });
+
+  if (error) {
+    console.error('BlitzPrices search error:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+// Extract search terms from a job description using AI
+async function extractSearchTerms(jobDescription: string, trade: string): Promise<string[]> {
+  const messages = [
+    {
+      role: 'system',
+      content: `You extract material/equipment search terms from job descriptions for a ${trade} contractor.
+Return ONLY a JSON array of 3-6 specific search terms for items that would be needed.
+Focus on main materials and equipment, not small consumables.`,
+    },
+    {
+      role: 'user',
+      content: `Job: "${jobDescription}"
+
+Return JSON array of search terms, e.g.: ["50 gallon water heater", "water heater connector", "gas flex line"]`,
+    },
+  ];
+
+  const content = await callOpenRouter(messages);
+  try {
+    return parseJSONFromResponse(content);
+  } catch {
+    // Fallback: split job description into key terms
+    return jobDescription.split(/\s+/).filter(w => w.length > 3).slice(0, 5);
+  }
+}
+
+// Calculate contractor cost from retail price (apply discount)
+function calculateContractorCost(retailPrice: number, settings: UserSettings): number {
+  const discount = settings.contractor_discount || 0;
+  return Math.round(retailPrice * (1 - discount) * 100) / 100;
+}
+
+// Calculate customer price from contractor cost (apply markup)
+function calculateCustomerPrice(contractorCost: number, category: string, settings: UserSettings): number {
+  let markup = settings.material_markup;
+
+  if (category === 'equipment' && settings.equipment_markup !== undefined) {
+    markup = settings.equipment_markup;
+  } else if (category === 'fees' && settings.fee_markup !== undefined) {
+    markup = settings.fee_markup;
+  }
+
+  return Math.round(contractorCost * (1 + markup) * 100) / 100;
 }
 
 async function callOpenRouter(messages: any[], model: string = MODEL): Promise<string> {
@@ -116,53 +198,131 @@ If you can't read the price tag clearly, set confidence to "low" and make your b
 }
 
 async function generateQuote(
-  pricebook: PricebookItem[],
   jobDescription: string,
   trade: string,
-  zipCode?: string
+  settings: UserSettings
 ) {
-  const locationContext = zipCode
-    ? `The contractor is located in ZIP code ${zipCode}. Adjust labor rates and material costs to reflect regional pricing for this area.`
-    : 'Use average US pricing.';
+  const region = settings.state || 'US';
+
+  // Step 1: Extract search terms from job description
+  const searchTerms = await extractSearchTerms(jobDescription, trade);
+  console.log('Search terms:', searchTerms);
+
+  // Step 2: Search BlitzPrices for each term
+  const blitzPricesResults: BlitzPricesItem[] = [];
+  const seenNames = new Set<string>();
+
+  for (const term of searchTerms) {
+    const results = await searchBlitzPrices(term, region);
+    for (const item of results) {
+      // Deduplicate by name
+      if (!seenNames.has(item.name.toLowerCase())) {
+        seenNames.add(item.name.toLowerCase());
+        blitzPricesResults.push(item);
+      }
+    }
+  }
+  console.log('BlitzPrices results:', blitzPricesResults.length);
+
+  // Step 3: AI reasons about quantities, labor, and what's missing
+  // Note: BlitzPrices stores RETAIL prices, we apply contractor discount later
+  const hasBlitzPricesResults = blitzPricesResults.length > 0;
 
   const messages = [
     {
       role: 'system',
-      content: `You are a ${trade} contractor quoting assistant. Given a pricebook and job description, suggest line items for the quote.
+      content: `You are a ${trade} contractor quoting assistant.
 
-LOCATION: ${locationContext}
+Your job is to:
+1. Create a complete quote with all materials needed for the job
+2. Set appropriate quantities for each item
+3. Estimate labor hours needed
+4. ${hasBlitzPricesResults ? 'Use prices from BlitzPrices when available, estimate others' : 'Estimate realistic retail prices for all items'}
 
-RULES:
-1. For items IN the pricebook: use pricebook_item_id and the pricebook price
-2. For items NOT in pricebook: set pricebook_item_id to null, is_guess to true, and estimate a fair price based on the contractor's location
-3. Include labor hours based on job complexity
-4. Don't forget permits, disposal, or other common fees if relevant
-5. Be practical and accurate for real-world ${trade} jobs
+Labor rate: $${settings.labor_rate}/hr
+${settings.helper_rate ? `Helper rate: $${settings.helper_rate}/hr` : ''}
 
+ALWAYS return line items - never return an empty list. Estimate prices if needed.
 Return ONLY valid JSON, no explanation.`,
     },
     {
       role: 'user',
-      content: `Pricebook:
-${JSON.stringify(pricebook, null, 2)}
+      content: `Job: "${jobDescription}"
 
-Job description: "${jobDescription}"
+${hasBlitzPricesResults
+  ? `Found retail prices from BlitzPrices (${region}):\n${blitzPricesResults.map(item => `- ${item.name}: $${item.avg_cost}/${item.unit} (${item.category})`).join('\n')}`
+  : `No items found in BlitzPrices. Estimate realistic retail prices for all needed materials.`}
 
-Return a JSON array:
-[{
-  "pricebook_item_id": "uuid-or-null",
-  "name": "item name",
-  "qty": 1,
-  "unit": "each",
-  "unit_price": 100,
-  "total": 100,
-  "is_guess": false
-}]`,
+Return JSON:
+{
+  "line_items": [
+    {
+      "name": "specific item name with size/specs",
+      "category": "materials|equipment|fees",
+      "qty": 1,
+      "unit": "each",
+      "retail_price": 100,
+      "needs_price": ${!hasBlitzPricesResults}
+    }
+  ],
+  "labor_hours": 3,
+  "helper_hours": 0,
+  "notes": "any important notes about the job"
+}
+
+IMPORTANT:
+- ALWAYS include line items - estimate prices if BlitzPrices has no data
+- Use EXACT prices from BlitzPrices when available (needs_price: false)
+- For estimated prices, set needs_price: true so contractor can verify
+- Keep item names CLEAN and CONCISE - just the item with size/specs
+  - GOOD: "50x30 Vinyl Window Double-Hung"
+  - BAD: "Window (for replacement of existing frame)"
+- Do NOT add explanatory parentheticals to item names
+- Do NOT include "misc consumables" or generic catch-all items
+- Only include specific, tangible materials the contractor will purchase
+- Be practical about quantities and labor for real ${trade} jobs`,
     },
   ];
 
   const content = await callOpenRouter(messages);
-  return parseJSONFromResponse(content);
+  const aiResult = parseJSONFromResponse(content);
+
+  // Step 4: Build final quote with discount and markup applied
+  // Flow: retail_price → contractor_cost (after discount) → customer_price (after markup)
+  const lineItems = aiResult.line_items.map((item: any) => {
+    const retailPrice = item.retail_price || item.cost; // support both old and new format
+    const contractorCost = calculateContractorCost(retailPrice, settings);
+    const customerPrice = calculateCustomerPrice(contractorCost, item.category, settings);
+
+    return {
+      name: item.name,
+      category: item.category,
+      qty: item.qty,
+      unit: item.unit,
+      retail_price: retailPrice,
+      contractor_cost: contractorCost,
+      unit_price: customerPrice,
+      total: Math.round(item.qty * customerPrice * 100) / 100,
+      needs_price: item.needs_price || false,
+    };
+  });
+
+  // Calculate labor
+  const laborTotal = (aiResult.labor_hours || 0) * settings.labor_rate;
+  const helperTotal = (aiResult.helper_hours || 0) * (settings.helper_rate || 0);
+
+  return {
+    line_items: lineItems,
+    labor_hours: aiResult.labor_hours || 0,
+    labor_rate: settings.labor_rate,
+    labor_total: laborTotal,
+    helper_hours: aiResult.helper_hours || 0,
+    helper_rate: settings.helper_rate || 0,
+    helper_total: helperTotal,
+    notes: aiResult.notes,
+    blitzprices_items_found: blitzPricesResults.length,
+    contractor_discount: settings.contractor_discount || 0,
+  };
 }
 
 async function generatePricebook(trade: string, zipCode?: string) {
@@ -224,7 +384,7 @@ serve(async (req) => {
 
     switch (action) {
       case 'generate_quote':
-        result = await generateQuote(params.pricebook, params.job_description, params.trade, params.zip_code);
+        result = await generateQuote(params.job_description, params.trade, params.settings);
         break;
       case 'generate_pricebook':
         result = await generatePricebook(params.trade, params.zip_code);

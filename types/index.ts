@@ -49,18 +49,36 @@ export type Trade = 'plumbing' | 'hvac' | 'electrical' | 'general';
 
 export interface UserSettings {
   user_id: string;
+
+  // Business info
   business_name: string;
   business_phone?: string;
   business_email?: string;
   business_address?: string;
+  state?: string;              // For BlitzPrices region
   zip_code?: string;
   logo_url?: string;
   trade: Trade;
-  default_tax_rate: number;
-  default_markup: number;
+
+  // Pricing settings (KEY - these drive quote pricing)
+  labor_rate: number;          // $/hr (e.g., 150)
+  helper_rate?: number;        // $/hr for helper (optional)
+  contractor_discount: number; // decimal (e.g., 0.15 for 15% off retail)
+  material_markup: number;     // decimal (e.g., 0.35 for 35%)
+  equipment_markup?: number;   // if different from materials
+  fee_markup?: number;         // if different (often 0)
+
+  // Tax
+  default_tax_rate: number;    // decimal (e.g., 0.08 for 8%)
+
+  // Payment
   payment_method: PaymentMethod;
   payment_link?: string;
   payment_details?: string;
+
+  // Community
+  contribute_to_blitzprices: boolean;  // default true
+
   created_at: string;
   updated_at: string;
 }

@@ -39,7 +39,7 @@ BlitzQuotes helps solo and small trade contractors (plumbers, HVAC, electricians
 | State | Zustand |
 | Backend/DB | Supabase (Auth + Postgres + Realtime) |
 | Pricing Data | BlitzPrices (crowdsourced database) |
-| AI | OpenRouter (gpt-4o-mini) - for reasoning only |
+| AI | OpenRouter (gpt-5-mini) - for reasoning only |
 | Payments | Bring Your Own (Venmo, PayPal, Zelle, etc.) — Stripe recommended |
 | Customer Quote View | Next.js on Vercel (or Supabase Edge Function) |
 
@@ -54,9 +54,20 @@ See `/blitzprices/CLAUDE.md` for full details.
 ### How it works:
 
 ```
-BlitzPrices provides: Material/equipment COSTS (what you pay)
-User Settings provide: Labor rate + markup (your business decisions)
-Math provides:         Customer prices (cost × markup)
+BlitzPrices provides: RETAIL prices (what stores charge)
+User Settings provide: Contractor discount + labor rate + markup
+Math provides:
+  - Contractor cost = retail × (1 - discount)
+  - Customer price = contractor cost × (1 + markup)
+```
+
+**Example:**
+```
+Retail price (BlitzPrices):    $500
+Contractor discount (15%):     -$75
+Contractor cost:               $425
+Markup (35%):                  +$149
+Customer price:                $574
 ```
 
 ### Two quote-building modes:
@@ -186,9 +197,10 @@ interface LineItem {
   category: 'materials' | 'equipment' | 'fees';
   qty: number;
   unit: string;
-  cost: number;         // cost per unit
-  unit_price: number;   // cost × (1 + markup)
-  total: number;        // qty × unit_price
+  retail_price: number;     // retail price from BlitzPrices
+  contractor_cost: number;  // retail × (1 - discount)
+  unit_price: number;       // contractor_cost × (1 + markup)
+  total: number;            // qty × unit_price
   source: 'pricebook' | 'blitzprices' | 'ai_estimate';
 }
 
@@ -209,6 +221,7 @@ interface UserSettings {
   // Pricing settings (KEY - these drive quote pricing)
   labor_rate: number;          // $/hr (e.g., 150)
   helper_rate?: number;        // $/hr for helper (optional)
+  contractor_discount: number; // decimal (e.g., 0.15 for 15% off retail)
   material_markup: number;     // decimal (e.g., 0.35 for 35%)
   equipment_markup?: number;   // if different from materials
   fee_markup?: number;         // if different (often 0)
@@ -294,6 +307,7 @@ CREATE TABLE user_settings (
   -- Pricing (KEY FIELDS)
   labor_rate NUMERIC(10,2) NOT NULL DEFAULT 100,
   helper_rate NUMERIC(10,2),
+  contractor_discount NUMERIC(5,4) NOT NULL DEFAULT 0,  -- discount off retail
   material_markup NUMERIC(5,4) NOT NULL DEFAULT 0.35,
   equipment_markup NUMERIC(5,4),
   fee_markup NUMERIC(5,4) DEFAULT 0,
@@ -341,13 +355,35 @@ CREATE POLICY "Anyone can view user settings"
 ## Quote Price Calculation
 
 ```typescript
+// Calculate contractor cost from retail price (apply discount)
+function calculateContractorCost(retailPrice: number, settings: UserSettings): number {
+  return retailPrice * (1 - settings.contractor_discount);
+}
+
+// Calculate customer price from contractor cost (apply markup)
+function calculateCustomerPrice(
+  contractorCost: number,
+  category: string,
+  settings: UserSettings
+): number {
+  const markup =
+    category === 'equipment' ? (settings.equipment_markup ?? settings.material_markup) :
+    category === 'fees' ? (settings.fee_markup ?? 0) :
+    settings.material_markup;
+
+  return contractorCost * (1 + markup);
+}
+
 function calculateQuoteTotal(
   lineItems: LineItem[],
   laborHours: number,
   settings: UserSettings
 ): QuoteTotals {
-  // Materials/equipment/fees subtotal (already has markup applied per item)
+  // Materials/equipment/fees - customer prices (already has discount + markup applied)
   const materialsSubtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
+
+  // Materials cost - what contractor pays
+  const materialsCost = lineItems.reduce((sum, item) => sum + (item.contractor_cost * item.qty), 0);
 
   // Labor total
   const laborTotal = laborHours * settings.labor_rate;
@@ -356,22 +392,16 @@ function calculateQuoteTotal(
   const subtotal = materialsSubtotal + laborTotal;
 
   // Tax (usually on materials only, not labor - varies by state)
-  const taxableAmount = materialsSubtotal; // or subtotal depending on state
-  const tax = taxableAmount * settings.default_tax_rate;
+  const tax = materialsSubtotal * settings.default_tax_rate;
 
   // Total
   const total = subtotal + tax;
 
-  return { materialsSubtotal, laborTotal, subtotal, tax, total };
-}
+  // Profit breakdown
+  const materialsProfit = materialsSubtotal - materialsCost;
+  const totalProfit = materialsProfit + laborTotal;
 
-function calculateItemPrice(cost: number, category: string, settings: UserSettings): number {
-  const markup =
-    category === 'equipment' ? (settings.equipment_markup ?? settings.material_markup) :
-    category === 'fees' ? (settings.fee_markup ?? 0) :
-    settings.material_markup;
-
-  return cost * (1 + markup);
+  return { materialsSubtotal, materialsCost, laborTotal, subtotal, tax, total, materialsProfit, totalProfit };
 }
 ```
 
@@ -469,6 +499,7 @@ Settings
 ├── Pricing                    ← KEY SECTION
 │   ├── Labor rate ($/hr)      → e.g., $150/hr
 │   ├── Helper rate ($/hr)     → optional
+│   ├── Contractor discount (%)→ e.g., 15% off retail
 │   ├── Material markup (%)    → e.g., 35%
 │   ├── Equipment markup (%)   → optional, defaults to material
 │   └── Default tax rate (%)   → e.g., 8%
@@ -543,6 +574,7 @@ eas submit            # Submit to stores
 - [ ] Set OpenRouter API key as Supabase secret
 - [ ] Enable pg_trgm extension for BlitzPrices search
 - [ ] Create BlitzPrices tables
+- [ ] **Run scrapers to seed BlitzPrices with 50-100k items** (see `/scrapers/CLAUDE.md`)
 - [ ] Test on real devices (iOS + Android)
 - [ ] Set up EAS Build
 
