@@ -14,6 +14,27 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Verify user JWT token
+async function verifyUserToken(token: string): Promise<{ user: any } | null> {
+  if (!token) return null;
+
+  const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('ANON_KEY');
+  const supabaseClient = createClient(SUPABASE_URL, anonKey!, {
+    global: {
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  });
+
+  const { data: { user }, error } = await supabaseClient.auth.getUser();
+  if (error || !user) {
+    console.error('User token verification failed:', error?.message);
+    return null;
+  }
+
+  return { user };
+}
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 interface BlitzPricesItem {
@@ -378,7 +399,16 @@ serve(async (req) => {
   }
 
   try {
-    const { action, ...params } = await req.json();
+    const { action, user_token, ...params } = await req.json();
+
+    // Verify user is authenticated
+    const auth = await verifyUserToken(user_token);
+    if (!auth) {
+      return new Response(JSON.stringify({ error: 'Unauthorized - invalid user token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     let result;
 

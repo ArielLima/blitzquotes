@@ -39,13 +39,14 @@ interface QuoteLineItem {
 export default function NewQuoteScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const { editId } = useLocalSearchParams<{ editId?: string }>();
+  const { editId, duplicateId } = useLocalSearchParams<{ editId?: string; duplicateId?: string }>();
   const { user, settings, addQuote, quotes, updateQuote } = useStore();
 
   const isEditing = !!editId;
-  const existingQuote = isEditing ? quotes.find(q => q.id === editId) : null;
+  const isDuplicating = !!duplicateId;
+  const sourceQuote = isEditing ? quotes.find(q => q.id === editId) : isDuplicating ? quotes.find(q => q.id === duplicateId) : null;
 
-  const [step, setStep] = useState<'describe' | 'review'>(isEditing ? 'review' : 'describe');
+  const [step, setStep] = useState<'describe' | 'review'>((isEditing || isDuplicating) ? 'review' : 'describe');
   const [isManualBuild, setIsManualBuild] = useState(false);
   const [preferredMode, setPreferredMode] = useState<'ai' | 'manual' | null>(null);
   const [jobDescription, setJobDescription] = useState('');
@@ -68,22 +69,22 @@ export default function NewQuoteScreen() {
   const [loading, setLoading] = useState(false);
   const [notes, setNotes] = useState('');
 
-  // Load existing quote data when editing
+  // Load existing quote data when editing or duplicating
   useEffect(() => {
-    if (existingQuote) {
-      setJobDescription(existingQuote.job_description || '');
-      setCustomerName(existingQuote.customer_name || '');
-      setCustomerPhone(existingQuote.customer_phone || '');
-      setLineItems(existingQuote.line_items || []);
-      setNotes(existingQuote.notes || '');
+    if (sourceQuote) {
+      setJobDescription(sourceQuote.job_description || '');
+      setCustomerName(isDuplicating ? '' : sourceQuote.customer_name || '');
+      setCustomerPhone(isDuplicating ? '' : sourceQuote.customer_phone || '');
+      setLineItems(sourceQuote.line_items || []);
+      setNotes(isDuplicating ? '' : sourceQuote.notes || '');
       // Calculate labor from existing data
       const laborRate = settings?.labor_rate || 100;
-      if (existingQuote.labor_total) {
-        setLaborTotal(existingQuote.labor_total);
-        setLaborHours(existingQuote.labor_total / laborRate);
+      if (sourceQuote.labor_total) {
+        setLaborTotal(sourceQuote.labor_total);
+        setLaborHours(sourceQuote.labor_total / laborRate);
       }
     }
-  }, [existingQuote]);
+  }, [sourceQuote, isDuplicating]);
 
   // Item editor modal state
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -162,9 +163,7 @@ export default function NewQuoteScreen() {
         setLineItems(data.items.line_items || []);
         setLaborHours(data.items.labor_hours || 0);
         setLaborTotal(data.items.labor_total || 0);
-        if (data.items.notes) {
-          setNotes(data.items.notes);
-        }
+        // Notes are user-entered only, not AI-generated
         setStep('review');
       } else {
         Alert.alert('No items', 'AI could not generate items for this job. Try a more detailed description.');
@@ -416,7 +415,7 @@ export default function NewQuoteScreen() {
       <>
         <Stack.Screen
           options={{
-            title: isEditing ? 'Edit Quote' : 'New Quote',
+            title: isEditing ? 'Edit Quote' : isDuplicating ? 'Duplicate Quote' : 'New Quote',
             headerLeft: () => (
               <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
                 <FontAwesome name="times" size={20} color={isDark ? '#FFFFFF' : '#111827'} />
@@ -569,27 +568,44 @@ export default function NewQuoteScreen() {
     <>
       <Stack.Screen
         options={{
-          title: isEditing ? 'Edit Quote' : (isManualBuild ? 'Build Quote' : 'Review Quote'),
+          title: isEditing ? 'Edit Quote' : isDuplicating ? 'Duplicate Quote' : (isManualBuild ? 'Build Quote' : 'Review Quote'),
           headerLeft: () => (
             <TouchableOpacity
-              onPress={() => isEditing ? router.back() : setStep('describe')}
+              onPress={() => (isEditing || isDuplicating) ? router.back() : setStep('describe')}
               style={styles.headerButton}>
-              <FontAwesome name={isEditing ? "times" : "arrow-left"} size={18} color={isDark ? '#FFFFFF' : '#111827'} />
+              <FontAwesome name={(isEditing || isDuplicating) ? "times" : "arrow-left"} size={18} color={isDark ? '#FFFFFF' : '#111827'} />
             </TouchableOpacity>
           ),
         }}
       />
       <View style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.customerHeader}>
-            <Text style={[styles.customerName, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-              {customerName || 'Customer'}
-            </Text>
-            {jobDescription ? (
-              <Text style={[styles.jobDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]} numberOfLines={1}>
-                {jobDescription}
-              </Text>
-            ) : null}
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          {/* Customer Info Section */}
+          <View style={[styles.customerSection, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+            <TextInput
+              style={[styles.customerNameInput, { color: isDark ? '#FFFFFF' : '#111827' }]}
+              placeholder="Customer Name *"
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              value={customerName}
+              onChangeText={setCustomerName}
+            />
+            <TextInput
+              style={[styles.customerPhoneInput, { color: isDark ? '#FFFFFF' : '#111827', borderTopColor: isDark ? '#374151' : '#E5E7EB' }]}
+              placeholder="Phone (optional)"
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              value={customerPhone}
+              onChangeText={setCustomerPhone}
+              keyboardType="phone-pad"
+            />
+            <TextInput
+              style={[styles.jobDescriptionInput, { color: isDark ? '#FFFFFF' : '#111827', borderTopColor: isDark ? '#374151' : '#E5E7EB' }]}
+              placeholder="Job description"
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              value={jobDescription}
+              onChangeText={setJobDescription}
+              multiline
+              numberOfLines={2}
+            />
           </View>
 
           <Text style={[styles.itemsHeader, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
@@ -1110,16 +1126,29 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.7,
   },
-  customerHeader: {
-    marginBottom: 12,
+  customerSection: {
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
-  customerName: {
-    fontSize: 20,
-    fontWeight: '700',
+  customerNameInput: {
+    fontSize: 18,
+    fontWeight: '600',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
-  jobDescription: {
+  customerPhoneInput: {
+    fontSize: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+  },
+  jobDescriptionInput: {
     fontSize: 14,
-    marginTop: 2,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    minHeight: 50,
   },
   itemsHeader: {
     fontSize: 13,

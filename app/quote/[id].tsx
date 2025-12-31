@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useLayoutEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -13,7 +13,7 @@ import {
   Linking,
   Clipboard,
 } from 'react-native';
-import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { Stack, router, useLocalSearchParams, useNavigation } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
@@ -26,12 +26,31 @@ export default function QuoteDetailScreen() {
   const isDark = colorScheme === 'dark';
   const { id, showSaveToPricebook } = useLocalSearchParams<{ id: string; showSaveToPricebook?: string }>();
   const { quotes, settings, updateQuote, deleteQuote, pricebook, addPricebookItem } = useStore();
+  const navigation = useNavigation();
 
   const quote = quotes.find(q => q.id === id);
   const [showPricebookModal, setShowPricebookModal] = useState(showSaveToPricebook === 'true');
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
   const [savingToPricebook, setSavingToPricebook] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+
+  // Set header options with fresh callbacks
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title: 'Quote',
+      headerLeft: () => (
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
+          <FontAwesome name="arrow-left" size={18} color={isDark ? '#FFFFFF' : '#111827'} />
+        </TouchableOpacity>
+      ),
+      headerRight: () => (
+        <TouchableOpacity onPress={() => setShowMenu(true)} style={styles.headerButton}>
+          <FontAwesome name="ellipsis-v" size={20} color={isDark ? '#FFFFFF' : '#111827'} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, isDark]);
 
   // Get guessed items from quote
   const guessedItems = (quote?.line_items || []).filter((item: any) => item.is_guess);
@@ -155,6 +174,10 @@ export default function QuoteDetailScreen() {
     );
   };
 
+  const handleDuplicate = () => {
+    router.push(`/quote/new?duplicateId=${id}`);
+  };
+
   const toggleItemSelection = (index: number) => {
     setSelectedItems(prev => {
       const next = new Set(prev);
@@ -209,26 +232,7 @@ export default function QuoteDetailScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          title: 'Quote',
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
-              <FontAwesome name="arrow-left" size={18} color={isDark ? '#FFFFFF' : '#111827'} />
-            </TouchableOpacity>
-          ),
-          headerRight: () => (
-            <View style={styles.headerActions}>
-              <TouchableOpacity onPress={() => router.push(`/quote/new?editId=${id}`)} style={styles.headerButton}>
-                <FontAwesome name="pencil" size={18} color="#3B82F6" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleDelete} style={styles.headerButton}>
-                <FontAwesome name="trash-o" size={18} color="#EF4444" />
-              </TouchableOpacity>
-            </View>
-          ),
-        }}
-      />
+      <Stack.Screen options={{ title: 'Quote' }} />
       <View style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {/* Header Card */}
@@ -357,6 +361,49 @@ export default function QuoteDetailScreen() {
           )}
         </View>
       </View>
+
+      {/* Actions Menu Modal */}
+      <Modal
+        visible={showMenu}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowMenu(false)}>
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setShowMenu(false)}>
+          <View style={[styles.menuContent, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setShowMenu(false);
+                router.push(`/quote/new?editId=${id}`);
+              }}>
+              <FontAwesome name="pencil" size={16} color="#3B82F6" style={styles.menuIcon} />
+              <Text style={[styles.menuItemText, { color: isDark ? '#FFFFFF' : '#111827' }]}>Edit Quote</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setShowMenu(false);
+                handleDuplicate();
+              }}>
+              <FontAwesome name="copy" size={16} color="#8B5CF6" style={styles.menuIcon} />
+              <Text style={[styles.menuItemText, { color: isDark ? '#FFFFFF' : '#111827' }]}>Duplicate</Text>
+            </TouchableOpacity>
+            <View style={[styles.menuDivider, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]} />
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setShowMenu(false);
+                handleDelete();
+              }}>
+              <FontAwesome name="trash-o" size={16} color="#EF4444" style={styles.menuIcon} />
+              <Text style={[styles.menuItemText, { color: '#EF4444' }]}>Delete Quote</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Send Quote Modal */}
       <Modal
@@ -526,11 +573,6 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 100,
   },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
   headerButton: {
     padding: 8,
   },
@@ -674,6 +716,43 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.7,
+  },
+  // Menu styles
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    paddingTop: 100,
+    paddingRight: 16,
+  },
+  menuContent: {
+    borderRadius: 12,
+    paddingVertical: 8,
+    minWidth: 180,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  menuIcon: {
+    width: 24,
+    textAlign: 'center',
+  },
+  menuItemText: {
+    fontSize: 16,
+    marginLeft: 12,
+  },
+  menuDivider: {
+    height: 1,
+    marginVertical: 4,
   },
   // Modal styles
   modalOverlay: {

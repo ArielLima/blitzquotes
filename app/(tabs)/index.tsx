@@ -6,7 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   useColorScheme,
-  ScrollView,
+  TextInput,
 } from 'react-native';
 import { Link } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -14,7 +14,7 @@ import { useStore } from '@/lib/store';
 import { formatCurrency, timeAgo, getStatusColor, getStatusLabel } from '@/lib/utils';
 import type { Quote } from '@/types';
 
-type FilterType = 'all' | 'draft' | 'sent' | 'viewed';
+type FilterType = 'all' | 'draft' | 'sent' | 'viewed' | 'paid';
 
 function QuoteCard({ quote }: { quote: Quote }) {
   const colorScheme = useColorScheme();
@@ -74,17 +74,27 @@ function QuoteCard({ quote }: { quote: Quote }) {
   );
 }
 
-function StatsCard({ label, value, icon, color }: { label: string; value: string; icon: string; color: string }) {
+function StatsRow({ stats }: { stats: { draftTotal: number; sentTotal: number; viewedTotal: number; paidTotal: number } }) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
+  const items = [
+    { label: 'Draft', value: stats.draftTotal, color: '#6B7280' },
+    { label: 'Sent', value: stats.sentTotal, color: '#3B82F6' },
+    { label: 'Viewed', value: stats.viewedTotal, color: '#F59E0B' },
+    { label: 'Paid', value: stats.paidTotal, color: '#10B981' },
+  ];
+
   return (
-    <View style={[styles.statCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-      <View style={[styles.statIcon, { backgroundColor: color + '15' }]}>
-        <FontAwesome name={icon as any} size={16} color={color} />
-      </View>
-      <Text style={[styles.statValue, { color: isDark ? '#FFFFFF' : '#111827' }]}>{value}</Text>
-      <Text style={[styles.statLabel, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>{label}</Text>
+    <View style={[styles.statsRow, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+      {items.map((item, index) => (
+        <View key={item.label} style={styles.statItem}>
+          <Text style={[styles.statLabel, { color: item.color }]}>{item.label}</Text>
+          <Text style={[styles.statValue, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+            {formatCurrency(item.value)}
+          </Text>
+        </View>
+      ))}
     </View>
   );
 }
@@ -103,9 +113,9 @@ function FilterChip({ label, active, onPress, count }: { label: string; active: 
       <Text style={[styles.filterLabel, { color: active ? '#FFFFFF' : (isDark ? '#D1D5DB' : '#374151') }]}>
         {label}
       </Text>
-      {count > 0 && (
-        <View style={[styles.filterCount, { backgroundColor: active ? 'rgba(255,255,255,0.2)' : (isDark ? '#4B5563' : '#D1D5DB') }]}>
-          <Text style={[styles.filterCountText, { color: active ? '#FFFFFF' : (isDark ? '#D1D5DB' : '#374151') }]}>
+      {active && count > 0 && (
+        <View style={[styles.filterCount, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+          <Text style={[styles.filterCountText, { color: '#FFFFFF' }]}>
             {count}
           </Text>
         </View>
@@ -123,6 +133,7 @@ function EmptyState({ filter }: { filter: FilterType }) {
     draft: { title: 'No drafts', subtitle: 'Draft quotes will appear here' },
     sent: { title: 'No sent quotes', subtitle: 'Quotes you send will appear here' },
     viewed: { title: 'No viewed quotes', subtitle: 'Quotes your customers view will appear here' },
+    paid: { title: 'No paid quotes', subtitle: 'Quotes marked as paid will appear here' },
   };
 
   return (
@@ -143,26 +154,48 @@ export default function QuotesScreen() {
   const isDark = colorScheme === 'dark';
   const { quotes } = useStore();
   const [filter, setFilter] = useState<FilterType>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const stats = useMemo(() => {
     const draftQuotes = quotes.filter(q => q.status === 'draft');
     const sentQuotes = quotes.filter(q => q.status === 'sent');
     const viewedQuotes = quotes.filter(q => q.status === 'viewed');
+    const paidQuotes = quotes.filter(q => q.status === 'paid');
 
     return {
       draftCount: draftQuotes.length,
       sentCount: sentQuotes.length,
       viewedCount: viewedQuotes.length,
+      paidCount: paidQuotes.length,
       draftTotal: draftQuotes.reduce((sum, q) => sum + q.total, 0),
       sentTotal: sentQuotes.reduce((sum, q) => sum + q.total, 0),
       viewedTotal: viewedQuotes.reduce((sum, q) => sum + q.total, 0),
+      paidTotal: paidQuotes.reduce((sum, q) => sum + q.total, 0),
     };
   }, [quotes]);
 
   const filteredQuotes = useMemo(() => {
-    if (filter === 'all') return quotes;
-    return quotes.filter(q => q.status === filter);
-  }, [quotes, filter]);
+    let filtered = quotes;
+
+    // Apply status filter
+    if (filter !== 'all') {
+      filtered = filtered.filter(q => q.status === filter);
+    }
+
+    // Apply search filter with fuzzy matching
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      const queryWords = query.split(/\s+/);
+
+      filtered = filtered.filter(q => {
+        const searchText = `${q.customer_name} ${q.job_description || ''}`.toLowerCase();
+        // Match if all query words are found anywhere in the text
+        return queryWords.every(word => searchText.includes(word));
+      });
+    }
+
+    return filtered;
+  }, [quotes, filter, searchQuery]);
 
   // Sort by created_at desc
   const sortedQuotes = useMemo(() => {
@@ -175,20 +208,34 @@ export default function QuotesScreen() {
     <View style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F3F4F6' }]}>
       {quotes.length > 0 && (
         <View style={styles.header}>
-          {/* Stats Row - Financial totals by status */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statsRow} contentContainerStyle={styles.statsContent}>
-            <StatsCard label="Drafts" value={formatCurrency(stats.draftTotal)} icon="edit" color="#6B7280" />
-            <StatsCard label="Sent" value={formatCurrency(stats.sentTotal)} icon="send" color="#3B82F6" />
-            <StatsCard label="Viewed" value={formatCurrency(stats.viewedTotal)} icon="eye" color="#F59E0B" />
-          </ScrollView>
+          {/* Stats Row - Compact financial totals */}
+          <StatsRow stats={stats} />
 
           {/* Filter Chips */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={styles.filterContent}>
+          <View style={styles.filterRow}>
             <FilterChip label="All" active={filter === 'all'} onPress={() => setFilter('all')} count={quotes.length} />
-            <FilterChip label="Drafts" active={filter === 'draft'} onPress={() => setFilter('draft')} count={stats.draftCount} />
+            <FilterChip label="Draft" active={filter === 'draft'} onPress={() => setFilter('draft')} count={stats.draftCount} />
             <FilterChip label="Sent" active={filter === 'sent'} onPress={() => setFilter('sent')} count={stats.sentCount} />
             <FilterChip label="Viewed" active={filter === 'viewed'} onPress={() => setFilter('viewed')} count={stats.viewedCount} />
-          </ScrollView>
+            <FilterChip label="Paid" active={filter === 'paid'} onPress={() => setFilter('paid')} count={stats.paidCount} />
+          </View>
+
+          {/* Search Bar */}
+          <View style={[styles.searchContainer, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+            <FontAwesome name="search" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+            <TextInput
+              style={[styles.searchInput, { color: isDark ? '#FFFFFF' : '#111827' }]}
+              placeholder="Search by name or job..."
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <FontAwesome name="times-circle" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       )}
 
@@ -220,55 +267,57 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: 8,
   },
-  statsRow: {
-    paddingHorizontal: 16,
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
     marginBottom: 12,
-  },
-  statsContent: {
+    paddingHorizontal: 14,
+    height: 44,
+    borderRadius: 12,
     gap: 10,
   },
-  statCard: {
-    padding: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    minWidth: 85,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  statIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statValue: {
+  searchInput: {
+    flex: 1,
     fontSize: 16,
-    fontWeight: '700',
+    height: '100%',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginBottom: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    justifyContent: 'space-between',
+  },
+  statItem: {
+    alignItems: 'center',
   },
   statLabel: {
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: 10,
+    fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
+    marginBottom: 2,
+  },
+  statValue: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   filterRow: {
+    flexDirection: 'row',
     paddingHorizontal: 16,
     marginBottom: 8,
-  },
-  filterContent: {
     gap: 8,
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 18,
     gap: 6,
   },
   filterLabel: {

@@ -198,11 +198,18 @@ export default function AddPriceScreen() {
     setAnalyzing(true);
 
     try {
+      const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+      const { data: { session } } = await supabase.auth.getSession();
+
       const { data, error } = await supabase.functions.invoke('ai', {
         body: {
           action: 'analyze_price_tag',
           image: asset.base64,
           trade: settings?.trade || 'general',
+          user_token: session?.access_token,
+        },
+        headers: {
+          Authorization: `Bearer ${anonKey}`,
         },
       });
 
