@@ -609,13 +609,21 @@ eas submit            # Submit to stores
 
 ## Roadmap
 
+### Recently Completed
+- [x] **Invoices** - Full quote to invoice flow
+  - Quote → Job (approved) → Invoice status flow
+  - Auto-generate invoice numbers (INV-001, INV-002, etc.)
+  - Work date and due date with native date pickers
+  - Customer can approve quotes from the shared link
+  - Mark as paid functionality
+  - Valid until date for quotes
+- [x] **Custom Invoice Branding** - Business logo and address on customer-facing pages
+  - Logo displayed in header (requires logo upload in settings - not yet implemented)
+  - Business address shown (requires address field in settings - not yet implemented)
+
 ### Next Up
-- [ ] **Invoices** - Convert quotes to invoices after job completion
-  - Add `type: 'quote' | 'invoice'` field
-  - Auto-generate invoice numbers
-  - Due date / payment terms
-  - "Convert to Invoice" button on quotes
-  - Same line items, totals, payment flow as quotes
+- [ ] **Settings: Logo upload** - Add image picker to upload business logo to Supabase storage
+- [ ] **Settings: Address field** - Add business address input field
 - [ ] **Fix scraper selectors** - Home Depot page structure changed, getting 0 items
 
 ### Future Ideas

@@ -26,6 +26,24 @@
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
+    .business-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .business-logo {
+      width: 60px;
+      height: 60px;
+      border-radius: 12px;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+
+    .business-info {
+      flex: 1;
+    }
+
     .business-name {
       font-size: 20px;
       font-weight: 600;
@@ -35,6 +53,12 @@
     .business-contact {
       color: #6B7280;
       font-size: 14px;
+    }
+
+    .business-address {
+      color: #6B7280;
+      font-size: 14px;
+      margin-top: 2px;
     }
 
     .customer-info {
@@ -225,8 +249,14 @@
 
   <div id="content" class="container hidden">
     <div class="header">
-      <div class="business-name" id="businessName"></div>
-      <div class="business-contact" id="businessContact"></div>
+      <div class="business-header">
+        <img id="businessLogo" class="business-logo" style="display: none;" alt="Business logo" />
+        <div class="business-info">
+          <div class="business-name" id="businessName"></div>
+          <div class="business-contact" id="businessContact"></div>
+          <div class="business-address" id="businessAddress"></div>
+        </div>
+      </div>
       <div class="customer-info">
         <div class="customer-name"><span id="documentType">Quote</span> for <span id="customerName"></span></div>
         <div class="job-description" id="jobDescription"></div>
@@ -351,8 +381,20 @@
       document.getElementById('businessName').textContent = business.name;
       document.getElementById('documentType').textContent = docType;
 
+      // Show logo if available
+      if (business.logo_url) {
+        const logo = document.getElementById('businessLogo');
+        logo.src = business.logo_url;
+        logo.style.display = 'block';
+      }
+
       const contact = [business.phone, business.email].filter(Boolean).join(' • ');
       document.getElementById('businessContact').textContent = contact;
+
+      // Show address if available
+      if (business.address) {
+        document.getElementById('businessAddress').textContent = business.address;
+      }
 
       document.getElementById('customerName').textContent = quote.customer_name;
       document.getElementById('jobDescription').textContent = quote.job_description;

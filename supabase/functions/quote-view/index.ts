@@ -168,6 +168,8 @@ serve(async (req) => {
       name: settings?.business_name || 'Quote',
       phone: settings?.business_phone || '',
       email: settings?.business_email || '',
+      address: settings?.business_address || '',
+      logo_url: settings?.logo_url || '',
     },
     // Only show payment for invoices
     payment: canPay ? (paymentUrl ? {
