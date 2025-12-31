@@ -580,6 +580,28 @@ eas submit            # Submit to stores
 
 ---
 
+## Roadmap
+
+### Next Up
+- [ ] **Invoices** - Convert quotes to invoices after job completion
+  - Add `type: 'quote' | 'invoice'` field
+  - Auto-generate invoice numbers
+  - Due date / payment terms
+  - "Convert to Invoice" button on quotes
+  - Same line items, totals, payment flow as quotes
+- [ ] **Fix scraper selectors** - Home Depot page structure changed, getting 0 items
+
+### Future Ideas
+- [ ] Recurring invoices
+- [ ] Partial payments tracking
+- [ ] PDF export for quotes/invoices
+- [ ] Customer signature capture
+- [ ] Photo attachments on quotes
+- [ ] Multi-user / team support
+- [ ] QuickBooks / accounting integration
+
+---
+
 ## Design Principles
 
 1. **Mobile-first** — Contractors are on job sites, not desks
