@@ -76,6 +76,30 @@ serve(async (req) => {
     return new Response('Quote ID required', { status: 400 });
   }
 
+  // Handle POST for approve action
+  if (req.method === 'POST') {
+    const body = await req.json();
+    if (body.action === 'approve') {
+      const { error } = await supabase
+        .from('quotes')
+        .update({ status: 'approved', approved_at: new Date().toISOString() })
+        .eq('id', quoteId)
+        .in('status', ['sent', 'viewed']); // Only allow approving sent/viewed quotes
+
+      if (error) {
+        return new Response(JSON.stringify({ error: 'Failed to approve quote' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  }
+
   // Fetch quote
   const { data: quote, error: quoteError } = await supabase
     .from('quotes')
@@ -116,10 +140,17 @@ serve(async (req) => {
     }
   }
 
+  // Determine if this is a quote or invoice
+  const isInvoice = quote.type === 'invoice';
+  const canApprove = !isInvoice && ['sent', 'viewed'].includes(quote.status);
+  const canPay = isInvoice && quote.status === 'invoiced';
+
   // Return JSON data - client will render it
   const responseData = {
     quote: {
       id: quote.id,
+      type: quote.type || 'quote',
+      invoice_number: quote.invoice_number,
       customer_name: quote.customer_name,
       job_description: quote.job_description,
       line_items: quote.line_items,
@@ -129,19 +160,25 @@ serve(async (req) => {
       total: quote.total,
       notes: quote.notes,
       status: quote.status,
+      valid_until: quote.valid_until,
+      work_date: quote.work_date,
+      due_date: quote.due_date,
     },
     business: {
       name: settings?.business_name || 'Quote',
       phone: settings?.business_phone || '',
       email: settings?.business_email || '',
     },
-    payment: paymentUrl ? {
+    // Only show payment for invoices
+    payment: canPay ? (paymentUrl ? {
       url: paymentUrl,
       label: paymentLabel,
     } : (settings?.payment_method === 'zelle' ? {
       method: 'zelle',
       details: settings?.payment_details,
-    } : null),
+    } : null)) : null,
+    // Can customer approve this quote?
+    canApprove,
   };
 
   return new Response(JSON.stringify(responseData), {

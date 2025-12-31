@@ -46,6 +46,10 @@ export function getStatusColor(status: string): string {
       return '#3B82F6'; // blue
     case 'viewed':
       return '#F59E0B'; // amber
+    case 'approved':
+      return '#8B5CF6'; // purple
+    case 'invoiced':
+      return '#EC4899'; // pink
     case 'paid':
       return '#10B981'; // green
     default:
@@ -61,11 +65,20 @@ export function getStatusLabel(status: string): string {
       return 'Sent';
     case 'viewed':
       return 'Viewed';
+    case 'approved':
+      return 'Approved';
+    case 'invoiced':
+      return 'Invoiced';
     case 'paid':
       return 'Paid';
     default:
       return status;
   }
+}
+
+export function generateInvoiceNumber(existingCount: number): string {
+  const num = existingCount + 1;
+  return `INV-${num.toString().padStart(3, '0')}`;
 }
 
 export function timeAgo(date: string): string {

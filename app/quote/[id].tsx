@@ -12,7 +12,9 @@ import {
   ActivityIndicator,
   Linking,
   Clipboard,
+  Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Stack, router, useLocalSearchParams, useNavigation } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useStore } from '@/lib/store';
@@ -34,11 +36,46 @@ export default function QuoteDetailScreen() {
   const [savingToPricebook, setSavingToPricebook] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+
+  // Invoice date fields - default work_date to today, due_date to 3 days from now
+  const getDefaultDates = () => {
+    const today = new Date();
+    const due = new Date();
+    due.setDate(due.getDate() + 3);
+    return { workDate: today, dueDate: due };
+  };
+  const [workDate, setWorkDate] = useState<Date>(getDefaultDates().workDate);
+  const [dueDate, setDueDate] = useState<Date>(getDefaultDates().dueDate);
+  const [showWorkDatePicker, setShowWorkDatePicker] = useState(false);
+  const [showDueDatePicker, setShowDueDatePicker] = useState(false);
+
+  // Format date for display
+  const formatDateDisplay = (date: Date | string) => {
+    if (!date) return '';
+    const d = typeof date === 'string' ? new Date(date + 'T00:00:00') : date;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  // Convert Date to YYYY-MM-DD string for database
+  const toDateString = (date: Date) => date.toISOString().split('T')[0];
+
+  // Check if it's an invoice (by type or by status being invoiced/paid)
+  const isInvoice = quote?.type === 'invoice' || ['invoiced', 'paid'].includes(quote?.status || '');
+  const isJob = quote?.status === 'approved';
+
+  // Get document type label: Quote → Job → Invoice
+  const getDocLabel = () => {
+    if (isInvoice) return 'Invoice';
+    if (isJob) return 'Job';
+    return 'Quote';
+  };
 
   // Set header options with fresh callbacks
   useLayoutEffect(() => {
     navigation.setOptions({
-      title: 'Quote',
+      title: getDocLabel(),
       headerLeft: () => (
         <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
           <FontAwesome name="arrow-left" size={18} color={isDark ? '#FFFFFF' : '#111827'} />
@@ -50,7 +87,7 @@ export default function QuoteDetailScreen() {
         </TouchableOpacity>
       ),
     });
-  }, [navigation, isDark]);
+  }, [navigation, isDark, isInvoice, isJob]);
 
   // Get guessed items from quote
   const guessedItems = (quote?.line_items || []).filter((item: any) => item.is_guess);
@@ -90,6 +127,75 @@ export default function QuoteDetailScreen() {
     }
   };
 
+  const markAsApproved = async () => {
+    try {
+      const { error } = await supabase
+        .from('quotes')
+        .update({ status: 'approved', approved_at: new Date().toISOString() })
+        .eq('id', quote.id);
+
+      if (error) throw error;
+      updateQuote(quote.id, { status: 'approved', approved_at: new Date().toISOString() });
+      Alert.alert('Success', 'Marked as approved!');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to mark as approved');
+    }
+  };
+
+  // Open invoice modal to set dates before converting
+  const handleConvertToInvoice = () => {
+    // Reset dates to defaults
+    const defaults = getDefaultDates();
+    setWorkDate(defaults.workDate);
+    setDueDate(defaults.dueDate);
+    setShowInvoiceModal(true);
+  };
+
+  // Actually convert to invoice with the selected dates
+  const confirmConvertToInvoice = async () => {
+    setInvoiceLoading(true);
+    try {
+      // Get count of existing invoices for numbering
+      const { count } = await supabase
+        .from('quotes')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', quote.user_id)
+        .eq('type', 'invoice');
+
+      const invoiceNumber = `INV-${((count || 0) + 1).toString().padStart(3, '0')}`;
+
+      const { error } = await supabase
+        .from('quotes')
+        .update({
+          type: 'invoice',
+          invoice_number: invoiceNumber,
+          status: 'invoiced',
+          invoiced_at: new Date().toISOString(),
+          work_date: toDateString(workDate),
+          due_date: toDateString(dueDate),
+        })
+        .eq('id', quote.id);
+
+      if (error) throw error;
+      updateQuote(quote.id, {
+        type: 'invoice',
+        invoice_number: invoiceNumber,
+        status: 'invoiced',
+        invoiced_at: new Date().toISOString(),
+        work_date: toDateString(workDate),
+        due_date: toDateString(dueDate),
+      });
+
+      setShowInvoiceModal(false);
+      // Show send modal so user can choose how to notify customer
+      setShowSendModal(true);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to convert to invoice');
+    } finally {
+      setInvoiceLoading(false);
+    }
+  };
+
   const markAsPaid = async () => {
     try {
       const { error } = await supabase
@@ -99,7 +205,7 @@ export default function QuoteDetailScreen() {
 
       if (error) throw error;
       updateQuote(quote.id, { status: 'paid', paid_at: new Date().toISOString() });
-      Alert.alert('Success', 'Quote marked as paid!');
+      Alert.alert('Success', 'Invoice marked as paid!');
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to mark as paid');
     }
@@ -107,7 +213,7 @@ export default function QuoteDetailScreen() {
 
   const getShareMessage = () => {
     const businessName = settings?.business_name || 'Your contractor';
-    return `Hi ${quote.customer_name},\n\nHere's your quote from ${businessName}:\n\nTotal: ${formatCurrency(quote.total)}\n\nView details & pay: ${quoteUrl}`;
+    return `Hi ${quote.customer_name},\n\nHere's your ${getDocLabel().toLowerCase()} from ${businessName}:\n\nTotal: ${formatCurrency(quote.total)}\n\nView details & pay: ${quoteUrl}`;
   };
 
   const handleSendSMS = async () => {
@@ -141,15 +247,16 @@ export default function QuoteDetailScreen() {
 
   const handleCopyLink = () => {
     Clipboard.setString(quoteUrl);
-    Alert.alert('Copied!', 'Quote link copied to clipboard');
+    Alert.alert('Copied!', `${getDocLabel()} link copied to clipboard`);
     setShowSendModal(false);
     markAsSent();
   };
 
   const handleDelete = () => {
+    const docLabel = getDocLabel();
     Alert.alert(
-      'Delete Quote',
-      `Are you sure you want to delete this quote for ${quote.customer_name}?`,
+      `Delete ${docLabel}`,
+      `Are you sure you want to delete this ${docLabel.toLowerCase()} for ${quote.customer_name}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -232,7 +339,7 @@ export default function QuoteDetailScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Quote' }} />
+      <Stack.Screen options={{ title: getDocLabel() }} />
       <View style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {/* Header Card */}
@@ -257,6 +364,37 @@ export default function QuoteDetailScreen() {
             <Text style={[styles.jobDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
               {quote.job_description}
             </Text>
+
+            {/* Date information */}
+            {!isInvoice && quote.valid_until && (
+              <View style={styles.dateInfoRow}>
+                <FontAwesome name="calendar" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+                <Text style={[styles.dateInfoText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  Valid until {formatDateDisplay(quote.valid_until)}
+                </Text>
+              </View>
+            )}
+            {isInvoice && (
+              <View style={styles.dateInfoContainer}>
+                {quote.work_date && (
+                  <View style={styles.dateInfoRow}>
+                    <FontAwesome name="calendar-check-o" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+                    <Text style={[styles.dateInfoText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                      Work completed {formatDateDisplay(quote.work_date)}
+                    </Text>
+                  </View>
+                )}
+                {quote.due_date && (
+                  <View style={styles.dateInfoRow}>
+                    <FontAwesome name="clock-o" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+                    <Text style={[styles.dateInfoText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                      Due {formatDateDisplay(quote.due_date)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
             {quote.status === 'viewed' && quote.viewed_at && (
               <View style={styles.viewedBanner}>
                 <FontAwesome name="eye" size={14} color="#F59E0B" />
@@ -333,12 +471,15 @@ export default function QuoteDetailScreen() {
 
         {/* Action Buttons */}
         <View style={[styles.footer, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
+          {/* Draft: Send Quote */}
           {quote.status === 'draft' && (
             <TouchableOpacity style={styles.primaryButton} onPress={() => setShowSendModal(true)}>
               <FontAwesome name="send" size={16} color="#FFFFFF" />
               <Text style={styles.primaryButtonText}>Send Quote</Text>
             </TouchableOpacity>
           )}
+
+          {/* Sent/Viewed: Resend + Mark Approved */}
           {(quote.status === 'sent' || quote.status === 'viewed') && (
             <View style={styles.footerRow}>
               <TouchableOpacity
@@ -347,12 +488,38 @@ export default function QuoteDetailScreen() {
                 <FontAwesome name="share" size={16} color={isDark ? '#FFFFFF' : '#111827'} />
                 <Text style={[styles.secondaryButtonText, { color: isDark ? '#FFFFFF' : '#111827' }]}>Resend</Text>
               </TouchableOpacity>
+              <TouchableOpacity style={styles.approvedButton} onPress={markAsApproved}>
+                <FontAwesome name="thumbs-up" size={16} color="#FFFFFF" />
+                <Text style={styles.approvedButtonText}>Mark Approved</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Approved: Convert to Invoice */}
+          {quote.status === 'approved' && (
+            <TouchableOpacity style={styles.invoiceButton} onPress={handleConvertToInvoice}>
+              <FontAwesome name="file-text" size={16} color="#FFFFFF" />
+              <Text style={styles.invoiceButtonText}>Convert to Invoice</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Invoiced: Resend Invoice + Mark Paid */}
+          {quote.status === 'invoiced' && (
+            <View style={styles.footerRow}>
+              <TouchableOpacity
+                style={[styles.secondaryButton, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                onPress={() => setShowSendModal(true)}>
+                <FontAwesome name="share" size={16} color={isDark ? '#FFFFFF' : '#111827'} />
+                <Text style={[styles.secondaryButtonText, { color: isDark ? '#FFFFFF' : '#111827' }]}>Send Invoice</Text>
+              </TouchableOpacity>
               <TouchableOpacity style={styles.paidButton} onPress={markAsPaid}>
                 <FontAwesome name="check" size={16} color="#FFFFFF" />
                 <Text style={styles.paidButtonText}>Mark Paid</Text>
               </TouchableOpacity>
             </View>
           )}
+
+          {/* Paid: Show confirmation */}
           {quote.status === 'paid' && (
             <View style={styles.paidBanner}>
               <FontAwesome name="check-circle" size={20} color="#10B981" />
@@ -380,7 +547,9 @@ export default function QuoteDetailScreen() {
                 router.push(`/quote/new?editId=${id}`);
               }}>
               <FontAwesome name="pencil" size={16} color="#3B82F6" style={styles.menuIcon} />
-              <Text style={[styles.menuItemText, { color: isDark ? '#FFFFFF' : '#111827' }]}>Edit Quote</Text>
+              <Text style={[styles.menuItemText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                Edit {getDocLabel()}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.menuItem}
@@ -399,7 +568,9 @@ export default function QuoteDetailScreen() {
                 handleDelete();
               }}>
               <FontAwesome name="trash-o" size={16} color="#EF4444" style={styles.menuIcon} />
-              <Text style={[styles.menuItemText, { color: '#EF4444' }]}>Delete Quote</Text>
+              <Text style={[styles.menuItemText, { color: '#EF4444' }]}>
+                Delete {getDocLabel()}
+              </Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -415,7 +586,7 @@ export default function QuoteDetailScreen() {
           <View style={[styles.sendModalContent, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                Send Quote
+                Send {getDocLabel()}
               </Text>
               <TouchableOpacity onPress={() => setShowSendModal(false)}>
                 <FontAwesome name="times" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
@@ -439,7 +610,7 @@ export default function QuoteDetailScreen() {
                     Text Message
                   </Text>
                   <Text style={[styles.sendOptionDesc, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                    {quote.customer_phone ? 'Open SMS with quote link' : 'No phone number'}
+                    {quote.customer_phone ? `Open SMS with ${getDocLabel().toLowerCase()} link` : 'No phone number'}
                   </Text>
                 </View>
                 <FontAwesome name="chevron-right" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
@@ -473,10 +644,161 @@ export default function QuoteDetailScreen() {
                     Copy Link
                   </Text>
                   <Text style={[styles.sendOptionDesc, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                    Copy quote URL to clipboard
+                    Copy {getDocLabel().toLowerCase()} URL to clipboard
                   </Text>
                 </View>
                 <FontAwesome name="chevron-right" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Convert to Invoice Modal */}
+      <Modal
+        visible={showInvoiceModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {
+          setShowInvoiceModal(false);
+          setShowWorkDatePicker(false);
+          setShowDueDatePicker(false);
+        }}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.invoiceModalContent, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                Convert to Invoice
+              </Text>
+              <TouchableOpacity onPress={() => {
+                setShowInvoiceModal(false);
+                setShowWorkDatePicker(false);
+                setShowDueDatePicker(false);
+              }}>
+                <FontAwesome name="times" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.invoiceModalSubtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              Set work completion and payment due dates
+            </Text>
+
+            <View style={styles.invoiceDateFields}>
+              <View style={styles.invoiceDateField}>
+                <Text style={[styles.invoiceDateLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  Work completed on
+                </Text>
+                <TouchableOpacity
+                  style={[styles.invoiceDateInput, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                  onPress={() => {
+                    setShowDueDatePicker(false);
+                    setShowWorkDatePicker(true);
+                  }}>
+                  <FontAwesome name="calendar-check-o" size={16} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                  <Text style={[styles.invoiceDateText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                    {formatDateDisplay(workDate)}
+                  </Text>
+                </TouchableOpacity>
+                {showWorkDatePicker && Platform.OS === 'ios' && (
+                  <View style={styles.datePickerContainer}>
+                    <View style={styles.datePickerHeader}>
+                      <TouchableOpacity onPress={() => setShowWorkDatePicker(false)}>
+                        <Text style={styles.datePickerDone}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <DateTimePicker
+                      value={workDate}
+                      mode="date"
+                      display="spinner"
+                      onChange={(event, date) => {
+                        if (date) setWorkDate(date);
+                      }}
+                    />
+                  </View>
+                )}
+                {showWorkDatePicker && Platform.OS === 'android' && (
+                  <DateTimePicker
+                    value={workDate}
+                    mode="date"
+                    display="default"
+                    onChange={(event, date) => {
+                      setShowWorkDatePicker(false);
+                      if (date) setWorkDate(date);
+                    }}
+                  />
+                )}
+              </View>
+
+              <View style={styles.invoiceDateField}>
+                <Text style={[styles.invoiceDateLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  Payment due by
+                </Text>
+                <TouchableOpacity
+                  style={[styles.invoiceDateInput, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                  onPress={() => {
+                    setShowWorkDatePicker(false);
+                    setShowDueDatePicker(true);
+                  }}>
+                  <FontAwesome name="calendar" size={16} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                  <Text style={[styles.invoiceDateText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                    {formatDateDisplay(dueDate)}
+                  </Text>
+                </TouchableOpacity>
+                {showDueDatePicker && Platform.OS === 'ios' && (
+                  <View style={styles.datePickerContainer}>
+                    <View style={styles.datePickerHeader}>
+                      <TouchableOpacity onPress={() => setShowDueDatePicker(false)}>
+                        <Text style={styles.datePickerDone}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <DateTimePicker
+                      value={dueDate}
+                      mode="date"
+                      display="spinner"
+                      onChange={(event, date) => {
+                        if (date) setDueDate(date);
+                      }}
+                    />
+                  </View>
+                )}
+                {showDueDatePicker && Platform.OS === 'android' && (
+                  <DateTimePicker
+                    value={dueDate}
+                    mode="date"
+                    display="default"
+                    onChange={(event, date) => {
+                      setShowDueDatePicker(false);
+                      if (date) setDueDate(date);
+                    }}
+                  />
+                )}
+              </View>
+            </View>
+
+            <View style={styles.invoiceModalFooter}>
+              <TouchableOpacity
+                style={styles.invoiceModalCancelButton}
+                onPress={() => {
+                  setShowInvoiceModal(false);
+                  setShowWorkDatePicker(false);
+                  setShowDueDatePicker(false);
+                }}>
+                <Text style={[styles.invoiceModalCancelText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.invoiceModalConfirmButton, invoiceLoading && styles.buttonDisabled]}
+                onPress={confirmConvertToInvoice}
+                disabled={invoiceLoading}>
+                {invoiceLoading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <FontAwesome name="file-text" size={16} color="#FFFFFF" />
+                    <Text style={styles.invoiceModalConfirmText}>Create Invoice</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -854,6 +1176,35 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  approvedButton: {
+    flex: 1,
+    flexDirection: 'row',
+    height: 52,
+    backgroundColor: '#8B5CF6',
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  approvedButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  invoiceButton: {
+    flexDirection: 'row',
+    height: 52,
+    backgroundColor: '#EC4899',
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  invoiceButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   paidButton: {
     flex: 1,
     flexDirection: 'row',
@@ -921,5 +1272,108 @@ const styles = StyleSheet.create({
   sendOptionDesc: {
     fontSize: 13,
     marginTop: 2,
+  },
+  // Date info styles
+  dateInfoContainer: {
+    marginTop: 12,
+    gap: 6,
+  },
+  dateInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  dateInfoText: {
+    fontSize: 14,
+  },
+  // Invoice modal styles
+  invoiceModalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 40,
+  },
+  invoiceModalSubtitle: {
+    fontSize: 15,
+    marginBottom: 20,
+  },
+  invoiceDateFields: {
+    gap: 16,
+    marginBottom: 24,
+  },
+  invoiceDateField: {
+    gap: 8,
+  },
+  invoiceDateLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  invoiceDateValue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 52,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  invoiceDateInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 52,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  invoiceDateText: {
+    fontSize: 16,
+  },
+  datePickerContainer: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    marginTop: 8,
+    overflow: 'hidden',
+  },
+  datePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  datePickerDone: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#3B82F6',
+  },
+  invoiceModalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  invoiceModalCancelButton: {
+    flex: 1,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  invoiceModalCancelText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  invoiceModalConfirmButton: {
+    flex: 2,
+    flexDirection: 'row',
+    height: 52,
+    backgroundColor: '#EC4899',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  invoiceModalConfirmText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

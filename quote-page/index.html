@@ -51,6 +51,27 @@
       margin-top: 4px;
     }
 
+    .date-info {
+      margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .date-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: #6B7280;
+    }
+
+    .date-row svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
+
     .section-header {
       font-size: 13px;
       font-weight: 600;
@@ -123,7 +144,7 @@
       box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
     }
 
-    .pay-button {
+    .action-button {
       display: block;
       width: 100%;
       max-width: 600px;
@@ -136,6 +157,36 @@
       font-size: 17px;
       font-weight: 600;
       border-radius: 12px;
+      border: none;
+      cursor: pointer;
+    }
+
+    .action-button.approve {
+      background: #8B5CF6;
+    }
+
+    .action-button:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    .status-banner {
+      max-width: 600px;
+      margin: 0 auto;
+      text-align: center;
+      padding: 16px;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+
+    .status-banner.approved {
+      background: #F3E8FF;
+      color: #8B5CF6;
+    }
+
+    .status-banner.paid {
+      background: #ECFDF5;
+      color: #10B981;
     }
 
     .zelle-info {
@@ -177,8 +228,9 @@
       <div class="business-name" id="businessName"></div>
       <div class="business-contact" id="businessContact"></div>
       <div class="customer-info">
-        <div class="customer-name">Quote for <span id="customerName"></span></div>
+        <div class="customer-name"><span id="documentType">Quote</span> for <span id="customerName"></span></div>
         <div class="job-description" id="jobDescription"></div>
+        <div class="date-info" id="dateInfo"></div>
       </div>
     </div>
 
@@ -212,9 +264,16 @@
 
   <script>
     const API_URL = 'https://xtbbueuadynxetullmsq.supabase.co/functions/v1/quote-view';
+    let currentQuoteId = null;
 
     function formatCurrency(amount) {
       return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      const date = new Date(dateStr + 'T00:00:00');
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
 
     function escapeHtml(text) {
@@ -226,6 +285,7 @@
     async function loadQuote() {
       const params = new URLSearchParams(window.location.search);
       const id = params.get('id');
+      currentQuoteId = id;
 
       if (!id) { showError(); return; }
 
@@ -247,17 +307,89 @@
       document.getElementById('error').classList.remove('hidden');
     }
 
-    function renderQuote(data) {
-      const { quote, business, payment } = data;
+    async function approveQuote() {
+      const button = document.getElementById('approveButton');
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'Approving...';
+      }
 
-      document.title = `Quote from ${business.name}`;
+      try {
+        const response = await fetch(`${API_URL}?id=${currentQuoteId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'approve' }),
+        });
+
+        if (response.ok) {
+          const section = document.getElementById('paymentSection');
+          section.innerHTML = '<div class="status-banner approved">✓ Quote Approved</div>';
+        } else {
+          if (button) {
+            button.disabled = false;
+            button.textContent = 'Approve Quote';
+          }
+          alert('Failed to approve quote. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        if (button) {
+          button.disabled = false;
+          button.textContent = 'Approve Quote';
+        }
+        alert('Failed to approve quote. Please try again.');
+      }
+    }
+
+    function renderQuote(data) {
+      const { quote, business, payment, canApprove } = data;
+
+      const isInvoice = quote.type === 'invoice';
+      const docType = isInvoice ? `Invoice ${quote.invoice_number || ''}` : 'Quote';
+
+      document.title = `${docType} from ${business.name}`;
       document.getElementById('businessName').textContent = business.name;
+      document.getElementById('documentType').textContent = docType;
 
       const contact = [business.phone, business.email].filter(Boolean).join(' • ');
       document.getElementById('businessContact').textContent = contact;
 
       document.getElementById('customerName').textContent = quote.customer_name;
       document.getElementById('jobDescription').textContent = quote.job_description;
+
+      // Display date information
+      const dateInfo = document.getElementById('dateInfo');
+      let dateHtml = '';
+
+      if (!isInvoice && quote.valid_until) {
+        dateHtml += `
+          <div class="date-row">
+            <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2z"/></svg>
+            Valid until ${formatDate(quote.valid_until)}
+          </div>
+        `;
+      }
+
+      if (isInvoice) {
+        if (quote.work_date) {
+          dateHtml += `
+            <div class="date-row">
+              <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              Work completed ${formatDate(quote.work_date)}
+            </div>
+          `;
+        }
+        if (quote.due_date) {
+          dateHtml += `
+            <div class="date-row">
+              <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+              Due ${formatDate(quote.due_date)}
+            </div>
+          `;
+        }
+      }
+
+      dateInfo.innerHTML = dateHtml;
 
       document.getElementById('lineItems').innerHTML = quote.line_items.map(item => `
         <div class="line-item">
@@ -285,10 +417,23 @@
         document.getElementById('notesSection').classList.remove('hidden');
       }
 
-      if (payment) {
-        const section = document.getElementById('paymentSection');
+      const section = document.getElementById('paymentSection');
+
+      // Show appropriate action based on status
+      if (quote.status === 'approved') {
+        section.innerHTML = '<div class="status-banner approved">✓ Quote Approved</div>';
+        section.classList.remove('hidden');
+      } else if (quote.status === 'paid') {
+        section.innerHTML = '<div class="status-banner paid">✓ Paid</div>';
+        section.classList.remove('hidden');
+      } else if (canApprove) {
+        // Quote can be approved by customer
+        section.innerHTML = '<button id="approveButton" class="action-button approve" onclick="approveQuote()">Approve Quote</button>';
+        section.classList.remove('hidden');
+      } else if (payment) {
+        // Invoice with payment option
         if (payment.url) {
-          section.innerHTML = `<a href="${escapeHtml(payment.url)}" class="pay-button" target="_blank">${escapeHtml(payment.label)}</a>`;
+          section.innerHTML = `<a href="${escapeHtml(payment.url)}" class="action-button" target="_blank">${escapeHtml(payment.label)}</a>`;
           section.classList.remove('hidden');
         } else if (payment.method === 'zelle') {
           section.innerHTML = `

@@ -136,8 +136,31 @@ Final quote assembled
 ### 4. Send & Track
 - Generate shareable link
 - Send via SMS or copy link
-- Track status: draft → sent → viewed → paid
-- Mark as paid manually
+- Track quote/invoice lifecycle (see below)
+
+---
+
+## Quote → Invoice Flow
+
+```
+Quote:   Draft → Sent → Viewed → Approved
+                                    ↓
+                            [Contractor does work]
+                                    ↓
+Invoice:                        Invoiced → Paid
+```
+
+**Quote phase:** Customer approves (not pays) the quote
+**Invoice phase:** Contractor converts to invoice, customer pays
+
+**Customer actions:**
+- Quote view: "Approve" button
+- Invoice view: "Pay" button
+
+**Contractor actions:**
+- "Mark Approved" (if customer approved via text/call)
+- "Convert to Invoice" (when approved, creates invoice)
+- "Mark Paid" (if customer paid outside app)
 
 ### 5. Settings
 - **Business info**: Name, phone, email, address
@@ -165,29 +188,33 @@ interface PricebookItem {
   created_at: timestamp;
 }
 
-// Quote
+// Quote/Invoice (same table, type distinguishes)
 interface Quote {
   id: string;
   user_id: string;
+  type: 'quote' | 'invoice';           // quote until converted
+  invoice_number?: string;             // auto-generated: INV-001, INV-002...
   customer_name: string;
   customer_phone?: string;
   customer_email?: string;
   job_description: string;
   line_items: LineItem[];
   labor_hours: number;
-  labor_rate: number;      // snapshot from settings at quote time
+  labor_rate: number;
   labor_total: number;
   materials_subtotal: number;
-  markup_percent: number;  // snapshot from settings
+  markup_percent: number;
   subtotal: number;
   tax_rate: number;
   tax: number;
   total: number;
   notes?: string;
-  status: 'draft' | 'sent' | 'viewed' | 'paid';
+  status: 'draft' | 'sent' | 'viewed' | 'approved' | 'invoiced' | 'paid';
   created_at: timestamp;
   sent_at?: timestamp;
   viewed_at?: timestamp;
+  approved_at?: timestamp;
+  invoiced_at?: timestamp;
   paid_at?: timestamp;
 }
 

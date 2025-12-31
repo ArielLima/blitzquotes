@@ -35,6 +35,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="invoices"
+        options={{
+          title: 'Jobs',
+          tabBarIcon: ({ color }) => <TabBarIcon name="briefcase" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="pricebook"
         options={{
           title: 'Prices',

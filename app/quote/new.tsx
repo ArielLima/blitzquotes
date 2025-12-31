@@ -63,11 +63,27 @@ export default function NewQuoteScreen() {
   }, []);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
   const [lineItems, setLineItems] = useState<QuoteLineItem[]>([]);
   const [laborHours, setLaborHours] = useState(0);
   const [laborTotal, setLaborTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [notes, setNotes] = useState('');
+
+  // Default valid_until to 30 days from now
+  const getDefaultValidUntil = () => {
+    const date = new Date();
+    date.setDate(date.getDate() + 30);
+    return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+  };
+  const [validUntil, setValidUntil] = useState(getDefaultValidUntil());
+
+  // Format date for display (YYYY-MM-DD -> "Jan 15, 2025")
+  const formatDateDisplay = (dateStr: string) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
 
   // Load existing quote data when editing or duplicating
   useEffect(() => {
@@ -75,8 +91,13 @@ export default function NewQuoteScreen() {
       setJobDescription(sourceQuote.job_description || '');
       setCustomerName(isDuplicating ? '' : sourceQuote.customer_name || '');
       setCustomerPhone(isDuplicating ? '' : sourceQuote.customer_phone || '');
+      setCustomerEmail(isDuplicating ? '' : sourceQuote.customer_email || '');
       setLineItems(sourceQuote.line_items || []);
       setNotes(isDuplicating ? '' : sourceQuote.notes || '');
+      // Load valid_until or default to 30 days
+      if (sourceQuote.valid_until && !isDuplicating) {
+        setValidUntil(sourceQuote.valid_until);
+      }
       // Calculate labor from existing data
       const laborRate = settings?.labor_rate || 100;
       if (sourceQuote.labor_total) {
@@ -128,38 +149,34 @@ export default function NewQuoteScreen() {
 
     setLoading(true);
     try {
-      const response = await fetch(
-        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/ai`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
+      const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const { data, error } = await supabase.functions.invoke('ai', {
+        body: {
+          action: 'generate_quote',
+          job_description: jobDescription,
+          trade: settings?.trade || 'general',
+          user_token: session?.access_token,
+          settings: {
+            labor_rate: settings?.labor_rate || 100,
+            helper_rate: settings?.helper_rate,
+            contractor_discount: settings?.contractor_discount || 0,
+            material_markup: settings?.material_markup || 0.35,
+            equipment_markup: settings?.equipment_markup,
+            fee_markup: settings?.fee_markup,
+            default_tax_rate: settings?.default_tax_rate || 0,
+            state: settings?.state,
           },
-          body: JSON.stringify({
-            action: 'generate_quote',
-            job_description: jobDescription,
-            trade: settings?.trade || 'general',
-            settings: {
-              labor_rate: settings?.labor_rate || 100,
-              helper_rate: settings?.helper_rate,
-              contractor_discount: settings?.contractor_discount || 0,
-              material_markup: settings?.material_markup || 0.35,
-              equipment_markup: settings?.equipment_markup,
-              fee_markup: settings?.fee_markup,
-              default_tax_rate: settings?.default_tax_rate || 0,
-              state: settings?.state,
-            },
-          }),
-        }
-      );
+        },
+        headers: {
+          Authorization: `Bearer ${anonKey}`,
+        },
+      });
 
-      const data = await response.json();
-      if (data.error) {
-        throw new Error(data.error);
-      }
+      if (error) throw error;
 
-      if (data.items) {
+      if (data?.items) {
         setLineItems(data.items.line_items || []);
         setLaborHours(data.items.labor_hours || 0);
         setLaborTotal(data.items.labor_total || 0);
@@ -325,6 +342,11 @@ export default function NewQuoteScreen() {
       return;
     }
 
+    if (!customerPhone.trim()) {
+      Alert.alert('Error', 'Please enter customer phone number');
+      return;
+    }
+
     if (lineItems.length === 0) {
       Alert.alert('Error', 'Quote must have at least one item');
       return;
@@ -334,7 +356,8 @@ export default function NewQuoteScreen() {
     try {
       const quoteData = {
         customer_name: customerName.trim(),
-        customer_phone: customerPhone.trim() || null,
+        customer_phone: customerPhone.trim(),
+        customer_email: customerEmail.trim() || null,
         job_description: jobDescription,
         line_items: lineItems,
         subtotal,
@@ -342,6 +365,7 @@ export default function NewQuoteScreen() {
         tax,
         total,
         notes: notes.trim() || null,
+        valid_until: validUntil || null,
       };
 
       if (isEditing && editId) {
@@ -510,7 +534,7 @@ export default function NewQuoteScreen() {
                     borderColor: isDark ? '#374151' : '#E5E7EB',
                   },
                 ]}
-                placeholder="Customer name"
+                placeholder="Customer name *"
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 value={customerName}
                 onChangeText={setCustomerName}
@@ -524,12 +548,40 @@ export default function NewQuoteScreen() {
                     borderColor: isDark ? '#374151' : '#E5E7EB',
                   },
                 ]}
-                placeholder="Phone (optional)"
+                placeholder="Phone *"
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 value={customerPhone}
                 onChangeText={setCustomerPhone}
                 keyboardType="phone-pad"
               />
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                    color: isDark ? '#FFFFFF' : '#111827',
+                    borderColor: isDark ? '#374151' : '#E5E7EB',
+                  },
+                ]}
+                placeholder="Email (optional)"
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                value={customerEmail}
+                onChangeText={setCustomerEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                Quote valid until
+              </Text>
+              <View style={[styles.dateField, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF', borderColor: isDark ? '#374151' : '#E5E7EB' }]}>
+                <FontAwesome name="calendar" size={16} color={isDark ? '#6B7280' : '#9CA3AF'} />
+                <Text style={[styles.dateText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                  {formatDateDisplay(validUntil)}
+                </Text>
+              </View>
             </View>
           </ScrollView>
 
@@ -591,11 +643,20 @@ export default function NewQuoteScreen() {
             />
             <TextInput
               style={[styles.customerPhoneInput, { color: isDark ? '#FFFFFF' : '#111827', borderTopColor: isDark ? '#374151' : '#E5E7EB' }]}
-              placeholder="Phone (optional)"
+              placeholder="Phone *"
               placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
               value={customerPhone}
               onChangeText={setCustomerPhone}
               keyboardType="phone-pad"
+            />
+            <TextInput
+              style={[styles.customerPhoneInput, { color: isDark ? '#FFFFFF' : '#111827', borderTopColor: isDark ? '#374151' : '#E5E7EB' }]}
+              placeholder="Email (optional)"
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              value={customerEmail}
+              onChangeText={setCustomerEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
             />
             <TextInput
               style={[styles.jobDescriptionInput, { color: isDark ? '#FFFFFF' : '#111827', borderTopColor: isDark ? '#374151' : '#E5E7EB' }]}
@@ -1058,6 +1119,18 @@ const styles = StyleSheet.create({
   },
   notesInput: {
     minHeight: 80,
+  },
+  dateField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 52,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  dateText: {
+    fontSize: 16,
   },
   input: {
     height: 52,

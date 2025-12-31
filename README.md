@@ -19,15 +19,24 @@ BlitzQuotes helps solo and small trade contractors (plumbers, HVAC, electricians
 - **Profit Calculator** - See your profit breakdown (not shown to customer)
 
 ### Quote Management
-- **Status Tracking** - Draft → Sent → Viewed → Paid
+- **Quotes Tab** - View pending quotes (Draft → Sent → Viewed)
 - **View Notifications** - See when customers view your quotes
 - **Edit & Delete** - Modify any quote, not just drafts
-- **Filter & Search** - Filter by status, see totals by category
+- **Filter & Search** - Filter by status, search by customer or job
+
+### Jobs & Invoices
+- **Jobs Tab** - Track confirmed work (Approved → Invoiced → Paid)
+- **Customer Approval** - Customers approve quotes from the quote link
+- **Convert to Invoice** - One tap to convert approved quotes to invoices
+- **Auto Invoice Numbers** - Sequential invoice numbering (INV-001, INV-002...)
+- **Invoice SMS** - Automatically open SMS to notify customer when invoice is ready
+- **Revenue & Profit Stats** - See total revenue and profit from paid jobs
 
 ### Sending & Payments
-- **Share via SMS** - Send quote link directly via text message
+- **Share via SMS** - Send quote/invoice link directly via text message
 - **Share Anywhere** - Email, WhatsApp, or copy link
-- **Customer View** - Professional web page for customers at q.blitzquotes.com
+- **Customer View** - Professional web page at q.blitzquotes.com
+- **Approve & Pay Flow** - Customers approve quotes, then pay invoices
 - **Payment Links** - Supports Venmo, PayPal, Cash App, Zelle, Stripe, Square
 - **Mark as Paid** - Track when you've been paid
 

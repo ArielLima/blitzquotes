@@ -23,11 +23,16 @@ export interface LineItem {
   total: number;
 }
 
+export type QuoteType = 'quote' | 'invoice';
+export type QuoteStatus = 'draft' | 'sent' | 'viewed' | 'approved' | 'invoiced' | 'paid';
+
 export interface Quote {
   id: string;
   user_id: string;
+  type: QuoteType;
+  invoice_number?: string;
   customer_name: string;
-  customer_phone?: string;
+  customer_phone: string;
   customer_email?: string;
   job_description: string;
   line_items: LineItem[];
@@ -36,10 +41,17 @@ export interface Quote {
   tax: number;
   total: number;
   notes?: string;
-  status: 'draft' | 'sent' | 'viewed' | 'paid';
+  status: QuoteStatus;
+  // Date fields
+  valid_until?: string;    // Quote expiration date
+  work_date?: string;      // When work was/will be done (for invoices)
+  due_date?: string;       // Payment due date (for invoices)
+  // Timestamps
   created_at: string;
   sent_at?: string;
   viewed_at?: string;
+  approved_at?: string;
+  invoiced_at?: string;
   paid_at?: string;
 }
 
@@ -87,7 +99,7 @@ export interface UserSettings {
 
 export type PricebookItemInput = Omit<PricebookItem, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
 
-export type QuoteInput = Omit<Quote, 'id' | 'user_id' | 'created_at' | 'sent_at' | 'viewed_at' | 'paid_at'>;
+export type QuoteInput = Omit<Quote, 'id' | 'user_id' | 'created_at' | 'sent_at' | 'viewed_at' | 'approved_at' | 'invoiced_at' | 'paid_at'>;
 
 export type UserSettingsInput = Omit<UserSettings, 'user_id' | 'created_at' | 'updated_at'>;
 

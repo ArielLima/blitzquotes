@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   useColorScheme,
   TextInput,
+  ScrollView,
 } from 'react-native';
 import { Link } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -14,7 +15,7 @@ import { useStore } from '@/lib/store';
 import { formatCurrency, timeAgo, getStatusColor, getStatusLabel } from '@/lib/utils';
 import type { Quote } from '@/types';
 
-type FilterType = 'all' | 'draft' | 'sent' | 'viewed' | 'paid';
+type FilterType = 'all' | 'draft' | 'sent' | 'viewed';
 
 function QuoteCard({ quote }: { quote: Quote }) {
   const colorScheme = useColorScheme();
@@ -74,31 +75,6 @@ function QuoteCard({ quote }: { quote: Quote }) {
   );
 }
 
-function StatsRow({ stats }: { stats: { draftTotal: number; sentTotal: number; viewedTotal: number; paidTotal: number } }) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
-  const items = [
-    { label: 'Draft', value: stats.draftTotal, color: '#6B7280' },
-    { label: 'Sent', value: stats.sentTotal, color: '#3B82F6' },
-    { label: 'Viewed', value: stats.viewedTotal, color: '#F59E0B' },
-    { label: 'Paid', value: stats.paidTotal, color: '#10B981' },
-  ];
-
-  return (
-    <View style={[styles.statsRow, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-      {items.map((item, index) => (
-        <View key={item.label} style={styles.statItem}>
-          <Text style={[styles.statLabel, { color: item.color }]}>{item.label}</Text>
-          <Text style={[styles.statValue, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-            {formatCurrency(item.value)}
-          </Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
 function FilterChip({ label, active, onPress, count }: { label: string; active: boolean; onPress: () => void; count: number }) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -133,7 +109,6 @@ function EmptyState({ filter }: { filter: FilterType }) {
     draft: { title: 'No drafts', subtitle: 'Draft quotes will appear here' },
     sent: { title: 'No sent quotes', subtitle: 'Quotes you send will appear here' },
     viewed: { title: 'No viewed quotes', subtitle: 'Quotes your customers view will appear here' },
-    paid: { title: 'No paid quotes', subtitle: 'Quotes marked as paid will appear here' },
   };
 
   return (
@@ -156,26 +131,25 @@ export default function QuotesScreen() {
   const [filter, setFilter] = useState<FilterType>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Only show pending quotes (draft, sent, viewed) - not jobs (approved, invoiced, paid)
+  const quotesOnly = useMemo(() => {
+    return quotes.filter(q => ['draft', 'sent', 'viewed'].includes(q.status));
+  }, [quotes]);
+
   const stats = useMemo(() => {
-    const draftQuotes = quotes.filter(q => q.status === 'draft');
-    const sentQuotes = quotes.filter(q => q.status === 'sent');
-    const viewedQuotes = quotes.filter(q => q.status === 'viewed');
-    const paidQuotes = quotes.filter(q => q.status === 'paid');
+    const draftQuotes = quotesOnly.filter(q => q.status === 'draft');
+    const sentQuotes = quotesOnly.filter(q => q.status === 'sent');
+    const viewedQuotes = quotesOnly.filter(q => q.status === 'viewed');
 
     return {
       draftCount: draftQuotes.length,
       sentCount: sentQuotes.length,
       viewedCount: viewedQuotes.length,
-      paidCount: paidQuotes.length,
-      draftTotal: draftQuotes.reduce((sum, q) => sum + q.total, 0),
-      sentTotal: sentQuotes.reduce((sum, q) => sum + q.total, 0),
-      viewedTotal: viewedQuotes.reduce((sum, q) => sum + q.total, 0),
-      paidTotal: paidQuotes.reduce((sum, q) => sum + q.total, 0),
     };
-  }, [quotes]);
+  }, [quotesOnly]);
 
   const filteredQuotes = useMemo(() => {
-    let filtered = quotes;
+    let filtered = quotesOnly;
 
     // Apply status filter
     if (filter !== 'all') {
@@ -206,19 +180,19 @@ export default function QuotesScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F3F4F6' }]}>
-      {quotes.length > 0 && (
+      {quotesOnly.length > 0 && (
         <View style={styles.header}>
-          {/* Stats Row - Compact financial totals */}
-          <StatsRow stats={stats} />
-
           {/* Filter Chips */}
-          <View style={styles.filterRow}>
-            <FilterChip label="All" active={filter === 'all'} onPress={() => setFilter('all')} count={quotes.length} />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.filterScroll}
+            contentContainerStyle={styles.filterRow}>
+            <FilterChip label="All" active={filter === 'all'} onPress={() => setFilter('all')} count={quotesOnly.length} />
             <FilterChip label="Draft" active={filter === 'draft'} onPress={() => setFilter('draft')} count={stats.draftCount} />
             <FilterChip label="Sent" active={filter === 'sent'} onPress={() => setFilter('sent')} count={stats.sentCount} />
             <FilterChip label="Viewed" active={filter === 'viewed'} onPress={() => setFilter('viewed')} count={stats.viewedCount} />
-            <FilterChip label="Paid" active={filter === 'paid'} onPress={() => setFilter('paid')} count={stats.paidCount} />
-          </View>
+          </ScrollView>
 
           {/* Search Bar */}
           <View style={[styles.searchContainer, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
@@ -267,6 +241,9 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: 8,
   },
+  filterScroll: {
+    flexGrow: 0,
+  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -281,29 +258,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     height: '100%',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    marginBottom: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    justifyContent: 'space-between',
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    marginBottom: 2,
-  },
-  statValue: {
-    fontSize: 13,
-    fontWeight: '700',
   },
   filterRow: {
     flexDirection: 'row',

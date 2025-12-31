@@ -402,7 +402,7 @@ serve(async (req) => {
     const { action, user_token, ...params } = await req.json();
 
     // Verify user is authenticated
-    const auth = await verifyUserToken(user_token);
+    const auth = await verifyUserToken(user_token || '');
     if (!auth) {
       return new Response(JSON.stringify({ error: 'Unauthorized - invalid user token' }), {
         status: 401,
