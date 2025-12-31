@@ -14,12 +14,15 @@ import {
   Modal,
   FlatList,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/utils';
 import { searchBlitzPrices, type BlitzPricesResult } from '@/lib/blitzprices';
+
+const QUOTE_MODE_KEY = 'blitzquotes_quote_mode';
 
 interface QuoteLineItem {
   name: string;
@@ -43,7 +46,20 @@ export default function NewQuoteScreen() {
   const existingQuote = isEditing ? quotes.find(q => q.id === editId) : null;
 
   const [step, setStep] = useState<'describe' | 'review'>(isEditing ? 'review' : 'describe');
+  const [isManualBuild, setIsManualBuild] = useState(false);
+  const [preferredMode, setPreferredMode] = useState<'ai' | 'manual' | null>(null);
   const [jobDescription, setJobDescription] = useState('');
+
+  // Load preferred quote mode
+  useEffect(() => {
+    AsyncStorage.getItem(QUOTE_MODE_KEY).then((mode) => {
+      if (mode === 'ai' || mode === 'manual') {
+        setPreferredMode(mode);
+      } else {
+        setPreferredMode('ai'); // Default to AI for first-time users
+      }
+    });
+  }, []);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [lineItems, setLineItems] = useState<QuoteLineItem[]>([]);
@@ -76,6 +92,13 @@ export default function NewQuoteScreen() {
   const [searchResults, setSearchResults] = useState<BlitzPricesResult[]>([]);
   const [searching, setSearching] = useState(false);
 
+  // Custom item form state
+  const [showCustomForm, setShowCustomForm] = useState(false);
+  const [customName, setCustomName] = useState('');
+  const [customPrice, setCustomPrice] = useState('');
+  const [customQty, setCustomQty] = useState('1');
+  const [customUnit, setCustomUnit] = useState('each');
+
   const taxRate = settings?.default_tax_rate || 0;
   const contractorDiscount = settings?.contractor_discount || 0;
   const materialsSubtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
@@ -85,11 +108,22 @@ export default function NewQuoteScreen() {
   const total = subtotal + tax;
   const materialsProfit = materialsSubtotal - materialsCost;
 
+  const handleStartManual = async () => {
+    await AsyncStorage.setItem(QUOTE_MODE_KEY, 'manual');
+    setPreferredMode('manual');
+    setIsManualBuild(true);
+    setStep('review');
+  };
+
   const handleGenerateQuote = async () => {
     if (!jobDescription.trim()) {
       Alert.alert('Error', 'Please describe the job');
       return;
     }
+
+    // Save preference
+    await AsyncStorage.setItem(QUOTE_MODE_KEY, 'ai');
+    setPreferredMode('ai');
 
     setLoading(true);
     try {
@@ -210,15 +244,58 @@ export default function NewQuoteScreen() {
     setSearchResults([]);
   };
 
+  // Add custom item
+  const handleAddCustomItem = () => {
+    const price = parseFloat(customPrice);
+    if (!customName.trim() || isNaN(price) || price <= 0) {
+      Alert.alert('Error', 'Please enter a valid name and price');
+      return;
+    }
+
+    const qty = parseInt(customQty) || 1;
+    const newItem: QuoteLineItem = {
+      name: customName.trim(),
+      category: 'materials',
+      qty,
+      unit: customUnit || 'each',
+      retail_price: price,
+      contractor_cost: price,
+      unit_price: price,
+      total: price * qty,
+      needs_price: false,
+    };
+
+    if (editingIndex !== null) {
+      setLineItems(items => items.map((it, i) => i === editingIndex ? newItem : it));
+    } else {
+      setLineItems(items => [...items, newItem]);
+    }
+
+    // Reset and close
+    setCustomName('');
+    setCustomPrice('');
+    setCustomQty('1');
+    setCustomUnit('each');
+    setShowCustomForm(false);
+    setEditModalVisible(false);
+    setEditingIndex(null);
+  };
+
   // Open editor for existing item or new item
   const openItemEditor = (index: number | null) => {
     setEditingIndex(index);
+    setShowCustomForm(false);
     if (index !== null) {
       setSearchQuery(lineItems[index].name);
     } else {
       setSearchQuery('');
     }
     setSearchResults([]);
+    // Reset custom form fields
+    setCustomName('');
+    setCustomPrice('');
+    setCustomQty('1');
+    setCustomUnit('each');
     setEditModalVisible(true);
   };
 
@@ -321,6 +398,19 @@ export default function NewQuoteScreen() {
     }
   };
 
+  const handleModeChange = async (mode: 'ai' | 'manual') => {
+    await AsyncStorage.setItem(QUOTE_MODE_KEY, mode);
+    setPreferredMode(mode);
+  };
+
+  const handleContinue = () => {
+    if (preferredMode === 'manual') {
+      handleStartManual();
+    } else {
+      handleGenerateQuote();
+    }
+  };
+
   if (step === 'describe') {
     return (
       <>
@@ -338,13 +428,55 @@ export default function NewQuoteScreen() {
           style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+            {/* Mode Toggle */}
+            <View style={[styles.modeToggle, { backgroundColor: isDark ? '#1F2937' : '#E5E7EB' }]}>
+              <TouchableOpacity
+                style={[
+                  styles.modeToggleOption,
+                  preferredMode === 'ai' && styles.modeToggleOptionActive,
+                ]}
+                onPress={() => handleModeChange('ai')}>
+                <FontAwesome
+                  name="magic"
+                  size={14}
+                  color={preferredMode === 'ai' ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280')}
+                />
+                <Text style={[
+                  styles.modeToggleText,
+                  { color: preferredMode === 'ai' ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280') },
+                ]}>
+                  AI Assist
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modeToggleOption,
+                  preferredMode === 'manual' && styles.modeToggleOptionActiveGreen,
+                ]}
+                onPress={() => handleModeChange('manual')}>
+                <FontAwesome
+                  name="list"
+                  size={14}
+                  color={preferredMode === 'manual' ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280')}
+                />
+                <Text style={[
+                  styles.modeToggleText,
+                  { color: preferredMode === 'manual' ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280') },
+                ]}>
+                  Manual
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                Describe the job
+                {preferredMode === 'ai' ? 'Describe the job' : 'Job description'}
               </Text>
-              <Text style={[styles.sectionHint, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                Be specific — include equipment, quantities, and location details
-              </Text>
+              {preferredMode === 'ai' && (
+                <Text style={[styles.sectionHint, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  Be specific — AI will suggest materials and pricing
+                </Text>
+              )}
               <TextInput
                 style={[
                   styles.textArea,
@@ -354,12 +486,14 @@ export default function NewQuoteScreen() {
                     borderColor: isDark ? '#374151' : '#E5E7EB',
                   },
                 ]}
-                placeholder="e.g., Replace 50 gallon gas water heater in garage. Old unit needs disposal. Customer wants expansion tank installed."
+                placeholder={preferredMode === 'ai'
+                  ? "e.g., Replace 50 gallon gas water heater in garage. Old unit needs disposal."
+                  : "Brief description (optional)"}
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 value={jobDescription}
                 onChangeText={setJobDescription}
                 multiline
-                numberOfLines={6}
+                numberOfLines={preferredMode === 'ai' ? 5 : 3}
                 textAlignVertical="top"
               />
             </View>
@@ -402,15 +536,25 @@ export default function NewQuoteScreen() {
 
           <View style={[styles.footer, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
             <TouchableOpacity
-              style={[styles.generateButton, loading && styles.buttonDisabled]}
-              onPress={handleGenerateQuote}
-              disabled={loading || !jobDescription.trim()}>
+              style={[
+                preferredMode === 'manual' ? styles.primaryButtonGreen : styles.primaryButton,
+                loading && styles.buttonDisabled,
+                (preferredMode === 'ai' && !jobDescription.trim()) && styles.buttonDisabled,
+              ]}
+              onPress={handleContinue}
+              disabled={loading || (preferredMode === 'ai' && !jobDescription.trim())}>
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <>
-                  <FontAwesome name="magic" size={18} color="#FFFFFF" />
-                  <Text style={styles.generateButtonText}>Generate Quote</Text>
+                  <FontAwesome
+                    name={preferredMode === 'manual' ? 'arrow-right' : 'magic'}
+                    size={18}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.primaryButtonText}>
+                    {preferredMode === 'manual' ? 'Continue' : 'Generate Quote'}
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
@@ -425,7 +569,7 @@ export default function NewQuoteScreen() {
     <>
       <Stack.Screen
         options={{
-          title: isEditing ? 'Edit Quote' : 'Review Quote',
+          title: isEditing ? 'Edit Quote' : (isManualBuild ? 'Build Quote' : 'Review Quote'),
           headerLeft: () => (
             <TouchableOpacity
               onPress={() => isEditing ? router.back() : setStep('describe')}
@@ -437,13 +581,15 @@ export default function NewQuoteScreen() {
       />
       <View style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={[styles.customerCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+          <View style={styles.customerHeader}>
             <Text style={[styles.customerName, { color: isDark ? '#FFFFFF' : '#111827' }]}>
               {customerName || 'Customer'}
             </Text>
-            <Text style={[styles.jobDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]} numberOfLines={2}>
-              {jobDescription}
-            </Text>
+            {jobDescription ? (
+              <Text style={[styles.jobDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]} numberOfLines={1}>
+                {jobDescription}
+              </Text>
+            ) : null}
           </View>
 
           <Text style={[styles.itemsHeader, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
@@ -511,44 +657,54 @@ export default function NewQuoteScreen() {
           </TouchableOpacity>
 
           {/* Labor Section */}
-          {laborHours > 0 && (
-            <>
-              <Text style={[styles.itemsHeader, { color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 16 }]}>
-                LABOR
-              </Text>
-              <View style={[styles.lineItem, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-                <View style={styles.lineItemHeader}>
-                  <Text style={[styles.lineItemName, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                    Labor
+          <Text style={[styles.itemsHeader, { color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 16 }]}>
+            LABOR
+          </Text>
+          {laborHours > 0 ? (
+            <View style={[styles.lineItem, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+              <View style={styles.lineItemHeader}>
+                <Text style={[styles.lineItemName, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                  Labor
+                </Text>
+                <TouchableOpacity
+                  onPress={() => handleUpdateLaborHours(0)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <FontAwesome name="trash-o" size={18} color="#EF4444" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.lineItemDetails}>
+                <View style={styles.qtyControl}>
+                  <TouchableOpacity
+                    style={[styles.qtyButton, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                    onPress={() => handleUpdateLaborHours(laborHours - 0.5)}>
+                    <FontAwesome name="minus" size={12} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                  </TouchableOpacity>
+                  <Text style={[styles.qtyText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                    {laborHours} hrs
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.qtyButton, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                    onPress={() => handleUpdateLaborHours(laborHours + 0.5)}>
+                    <FontAwesome name="plus" size={12} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.lineItemPricing}>
+                  <Text style={[styles.unitPrice, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                    {formatCurrency(settings?.labor_rate || 100)}/hr
+                  </Text>
+                  <Text style={[styles.lineItemTotal, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                    {formatCurrency(laborTotal)}
                   </Text>
                 </View>
-                <View style={styles.lineItemDetails}>
-                  <View style={styles.qtyControl}>
-                    <TouchableOpacity
-                      style={[styles.qtyButton, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
-                      onPress={() => handleUpdateLaborHours(laborHours - 0.5)}>
-                      <FontAwesome name="minus" size={12} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                    </TouchableOpacity>
-                    <Text style={[styles.qtyText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                      {laborHours} hrs
-                    </Text>
-                    <TouchableOpacity
-                      style={[styles.qtyButton, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
-                      onPress={() => handleUpdateLaborHours(laborHours + 0.5)}>
-                      <FontAwesome name="plus" size={12} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.lineItemPricing}>
-                    <Text style={[styles.unitPrice, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                      {formatCurrency(settings?.labor_rate || 100)}/hr
-                    </Text>
-                    <Text style={[styles.lineItemTotal, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                      {formatCurrency(laborTotal)}
-                    </Text>
-                  </View>
-                </View>
               </View>
-            </>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.addItemButton, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
+              onPress={() => handleUpdateLaborHours(1)}>
+              <FontAwesome name="clock-o" size={16} color="#3B82F6" />
+              <Text style={[styles.addItemButtonText, { color: '#3B82F6' }]}>Add Labor</Text>
+            </TouchableOpacity>
           )}
 
           <View style={styles.section}>
@@ -664,6 +820,7 @@ export default function NewQuoteScreen() {
                 setEditingIndex(null);
                 setSearchQuery('');
                 setSearchResults([]);
+                setShowCustomForm(false);
               }}>
                 <Text style={[styles.modalCancel, { color: '#3B82F6' }]}>Cancel</Text>
               </TouchableOpacity>
@@ -673,68 +830,179 @@ export default function NewQuoteScreen() {
               <View style={{ width: 60 }} />
             </View>
 
-            <View style={[styles.searchContainer, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-              <FontAwesome name="search" size={16} color={isDark ? '#6B7280' : '#9CA3AF'} />
-              <TextInput
-                style={[styles.searchInput, { color: isDark ? '#FFFFFF' : '#111827' }]}
-                placeholder="Search BlitzPrices..."
-                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-                value={searchQuery}
-                onChangeText={handleSearch}
-                autoFocus
-              />
-              {searching && <ActivityIndicator size="small" color="#3B82F6" />}
-              {searchQuery.length > 0 && !searching && (
-                <TouchableOpacity onPress={() => { setSearchQuery(''); setSearchResults([]); }}>
-                  <FontAwesome name="times-circle" size={16} color={isDark ? '#6B7280' : '#9CA3AF'} />
-                </TouchableOpacity>
-              )}
+            {/* Toggle between search and custom */}
+            <View style={styles.modalTabs}>
+              <TouchableOpacity
+                style={[styles.modalTab, !showCustomForm && styles.modalTabActive]}
+                onPress={() => setShowCustomForm(false)}>
+                <Text style={[styles.modalTabText, !showCustomForm && styles.modalTabTextActive]}>
+                  Search
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalTab, showCustomForm && styles.modalTabActive]}
+                onPress={() => setShowCustomForm(true)}>
+                <Text style={[styles.modalTabText, showCustomForm && styles.modalTabTextActive]}>
+                  Custom Item
+                </Text>
+              </TouchableOpacity>
             </View>
 
-            <FlatList
-              data={searchResults}
-              keyExtractor={(item, index) => `${item.name}-${index}`}
-              contentContainerStyle={styles.searchResultsList}
-              ListEmptyComponent={
-                searchQuery.length >= 2 && !searching ? (
-                  <View style={styles.emptySearch}>
-                    <FontAwesome name="search" size={32} color={isDark ? '#4B5563' : '#D1D5DB'} />
-                    <Text style={[styles.emptySearchText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                      No items found for "{searchQuery}"
+            {showCustomForm ? (
+              <ScrollView style={styles.customFormContainer} keyboardShouldPersistTaps="handled">
+                <View style={styles.customFormField}>
+                  <Text style={[styles.customFormLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                    Item Name
+                  </Text>
+                  <TextInput
+                    style={[styles.customFormInput, {
+                      backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                      color: isDark ? '#FFFFFF' : '#111827',
+                      borderColor: isDark ? '#374151' : '#E5E7EB',
+                    }]}
+                    placeholder="e.g., Water heater installation"
+                    placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                    value={customName}
+                    onChangeText={setCustomName}
+                    autoFocus
+                  />
+                </View>
+
+                <View style={styles.customFormRow}>
+                  <View style={[styles.customFormField, { flex: 1 }]}>
+                    <Text style={[styles.customFormLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                      Price
                     </Text>
+                    <TextInput
+                      style={[styles.customFormInput, {
+                        backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                        color: isDark ? '#FFFFFF' : '#111827',
+                        borderColor: isDark ? '#374151' : '#E5E7EB',
+                      }]}
+                      placeholder="0.00"
+                      placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                      value={customPrice}
+                      onChangeText={setCustomPrice}
+                      keyboardType="decimal-pad"
+                    />
                   </View>
-                ) : searchQuery.length < 2 ? (
-                  <View style={styles.emptySearch}>
-                    <FontAwesome name="database" size={32} color={isDark ? '#4B5563' : '#D1D5DB'} />
-                    <Text style={[styles.emptySearchText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                      Search BlitzPrices for materials, equipment, and fees
+                  <View style={[styles.customFormField, { flex: 1 }]}>
+                    <Text style={[styles.customFormLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                      Qty
                     </Text>
+                    <TextInput
+                      style={[styles.customFormInput, {
+                        backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                        color: isDark ? '#FFFFFF' : '#111827',
+                        borderColor: isDark ? '#374151' : '#E5E7EB',
+                      }]}
+                      placeholder="1"
+                      placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                      value={customQty}
+                      onChangeText={setCustomQty}
+                      keyboardType="number-pad"
+                    />
                   </View>
-                ) : null
-              }
-              renderItem={({ item }) => (
+                  <View style={[styles.customFormField, { flex: 1 }]}>
+                    <Text style={[styles.customFormLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                      Unit
+                    </Text>
+                    <TextInput
+                      style={[styles.customFormInput, {
+                        backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                        color: isDark ? '#FFFFFF' : '#111827',
+                        borderColor: isDark ? '#374151' : '#E5E7EB',
+                      }]}
+                      placeholder="each"
+                      placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                      value={customUnit}
+                      onChangeText={setCustomUnit}
+                    />
+                  </View>
+                </View>
+
                 <TouchableOpacity
-                  style={[styles.searchResultItem, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
-                  onPress={() => handleSelectItem(item)}>
-                  <View style={styles.searchResultInfo}>
-                    <Text style={[styles.searchResultName, { color: isDark ? '#FFFFFF' : '#111827' }]} numberOfLines={2}>
-                      {item.name}
-                    </Text>
-                    <Text style={[styles.searchResultMeta, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
-                      {item.category} · {item.unit} · {item.sample_size} reports
-                    </Text>
-                  </View>
-                  <View style={styles.searchResultPricing}>
-                    <Text style={[styles.searchResultPrice, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                      {formatCurrency(item.avg_cost)}
-                    </Text>
-                    <Text style={[styles.searchResultRange, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
-                      {formatCurrency(item.min_cost)} - {formatCurrency(item.max_cost)}
-                    </Text>
-                  </View>
+                  style={styles.customFormButton}
+                  onPress={handleAddCustomItem}>
+                  <Text style={styles.customFormButtonText}>Add Item</Text>
                 </TouchableOpacity>
-              )}
-            />
+              </ScrollView>
+            ) : (
+              <>
+                <View style={[styles.searchContainer, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+                  <FontAwesome name="search" size={16} color={isDark ? '#6B7280' : '#9CA3AF'} />
+                  <TextInput
+                    style={[styles.searchInput, { color: isDark ? '#FFFFFF' : '#111827' }]}
+                    placeholder="Search BlitzPrices..."
+                    placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                    value={searchQuery}
+                    onChangeText={handleSearch}
+                    autoFocus
+                  />
+                  {searching && <ActivityIndicator size="small" color="#3B82F6" />}
+                  {searchQuery.length > 0 && !searching && (
+                    <TouchableOpacity onPress={() => { setSearchQuery(''); setSearchResults([]); }}>
+                      <FontAwesome name="times-circle" size={16} color={isDark ? '#6B7280' : '#9CA3AF'} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <FlatList
+                  data={searchResults}
+                  keyExtractor={(item, index) => `${item.name}-${index}`}
+                  contentContainerStyle={styles.searchResultsList}
+                  ListEmptyComponent={
+                    searchQuery.length >= 2 && !searching ? (
+                      <View style={styles.emptySearch}>
+                        <FontAwesome name="search" size={32} color={isDark ? '#4B5563' : '#D1D5DB'} />
+                        <Text style={[styles.emptySearchText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                          No items found for "{searchQuery}"
+                        </Text>
+                        <TouchableOpacity
+                          style={styles.emptySearchAction}
+                          onPress={() => {
+                            setCustomName(searchQuery);
+                            setShowCustomForm(true);
+                          }}>
+                          <Text style={styles.emptySearchActionText}>
+                            Add "{searchQuery}" as custom item
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : searchQuery.length < 2 ? (
+                      <View style={styles.emptySearch}>
+                        <FontAwesome name="database" size={32} color={isDark ? '#4B5563' : '#D1D5DB'} />
+                        <Text style={[styles.emptySearchText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                          Search BlitzPrices or add a custom item
+                        </Text>
+                      </View>
+                    ) : null
+                  }
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={[styles.searchResultItem, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
+                      onPress={() => handleSelectItem(item)}>
+                      <View style={styles.searchResultInfo}>
+                        <Text style={[styles.searchResultName, { color: isDark ? '#FFFFFF' : '#111827' }]} numberOfLines={2}>
+                          {item.name}
+                        </Text>
+                        <Text style={[styles.searchResultMeta, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+                          {item.category} · {item.unit} · {item.sample_size} reports
+                        </Text>
+                      </View>
+                      <View style={styles.searchResultPricing}>
+                        <Text style={[styles.searchResultPrice, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                          {formatCurrency(item.avg_cost)}
+                        </Text>
+                        <Text style={[styles.searchResultRange, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+                          {formatCurrency(item.min_cost)} - {formatCurrency(item.max_cost)}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                />
+              </>
+            )}
           </View>
         </Modal>
       </View>
@@ -791,7 +1059,7 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 32,
   },
-  generateButton: {
+  primaryButton: {
     flexDirection: 'row',
     height: 56,
     backgroundColor: '#3B82F6',
@@ -800,26 +1068,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  generateButtonText: {
+  primaryButtonGreen: {
+    flexDirection: 'row',
+    height: 56,
+    backgroundColor: '#10B981',
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+  },
+  primaryButtonText: {
     color: '#FFFFFF',
     fontSize: 17,
+    fontWeight: '600',
+  },
+  modeToggle: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 20,
+  },
+  modeToggleOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
+  },
+  modeToggleOptionActive: {
+    backgroundColor: '#3B82F6',
+  },
+  modeToggleOptionActiveGreen: {
+    backgroundColor: '#10B981',
+  },
+  modeToggleText: {
+    fontSize: 14,
     fontWeight: '600',
   },
   buttonDisabled: {
     opacity: 0.7,
   },
-  customerCard: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
+  customerHeader: {
+    marginBottom: 12,
   },
   customerName: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
   },
   jobDescription: {
     fontSize: 14,
-    marginTop: 4,
+    marginTop: 2,
   },
   itemsHeader: {
     fontSize: 13,
@@ -1031,6 +1331,77 @@ const styles = StyleSheet.create({
     fontSize: 15,
     textAlign: 'center',
     paddingHorizontal: 32,
+  },
+  emptySearchAction: {
+    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#3B82F6',
+    borderRadius: 8,
+  },
+  emptySearchActionText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  modalTabs: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  modalTab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 8,
+    backgroundColor: 'transparent',
+  },
+  modalTabActive: {
+    backgroundColor: '#3B82F6',
+  },
+  modalTabText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  modalTabTextActive: {
+    color: '#FFFFFF',
+  },
+  customFormContainer: {
+    padding: 16,
+  },
+  customFormField: {
+    marginBottom: 16,
+  },
+  customFormLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 6,
+  },
+  customFormInput: {
+    height: 48,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    fontSize: 16,
+  },
+  customFormRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  customFormButton: {
+    height: 52,
+    backgroundColor: '#10B981',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  customFormButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   profitCard: {
     padding: 16,

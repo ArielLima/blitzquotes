@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -43,6 +43,13 @@ function EditModal({
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const [inputValue, setInputValue] = useState(value);
+
+  // Reset input value when modal opens with new value
+  useEffect(() => {
+    if (visible) {
+      setInputValue(value);
+    }
+  }, [visible, value]);
 
   const handleSave = () => {
     onSave(inputValue);

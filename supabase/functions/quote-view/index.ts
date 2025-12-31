@@ -25,7 +25,8 @@ const PAYMENT_METHODS: Record<string, PaymentConfig> = {
     label: 'Pay with Venmo',
     buildUrl: (link, amount) => {
       const username = link.replace('@', '');
-      return `venmo://paycharge?txn=pay&recipients=${username}&amount=${amount}&note=Quote%20Payment`;
+      // Use web URL that works in browsers - deep link only works in mobile apps
+      return `https://venmo.com/u/${username}`;
     },
   },
   paypal: {

@@ -25,7 +25,7 @@ export default function QuoteDetailScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { id, showSaveToPricebook } = useLocalSearchParams<{ id: string; showSaveToPricebook?: string }>();
-  const { quotes, settings, updateQuote, pricebook, addPricebookItem } = useStore();
+  const { quotes, settings, updateQuote, deleteQuote, pricebook, addPricebookItem } = useStore();
 
   const quote = quotes.find(q => q.id === id);
   const [showPricebookModal, setShowPricebookModal] = useState(showSaveToPricebook === 'true');
@@ -37,8 +37,8 @@ export default function QuoteDetailScreen() {
   const guessedItems = (quote?.line_items || []).filter((item: any) => item.is_guess);
 
   // Quote URL for customer view (static page)
-  const quoteBaseUrl = process.env.EXPO_PUBLIC_QUOTE_PAGE_URL || 'https://blitzquotes.com/q';
-  const quoteUrl = `${quoteBaseUrl}?id=${id}`;
+  const quoteBaseUrl = process.env.EXPO_PUBLIC_QUOTE_PAGE_URL || 'https://q.blitzquotes.com';
+  const quoteUrl = `${quoteBaseUrl}/?id=${id}`;
 
   useEffect(() => {
     // Auto-select all guessed items initially
@@ -112,6 +112,34 @@ export default function QuoteDetailScreen() {
     markAsSent();
   };
 
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Quote',
+      `Are you sure you want to delete this quote for ${quote.customer_name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('quotes')
+                .delete()
+                .eq('id', quote.id);
+
+              if (error) throw error;
+              deleteQuote(quote.id);
+              router.back();
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to delete quote');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const toggleItemSelection = (index: number) => {
     setSelectedItems(prev => {
       const next = new Set(prev);
@@ -169,15 +197,18 @@ export default function QuoteDetailScreen() {
       <Stack.Screen
         options={{
           title: 'Quote',
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
+              <FontAwesome name="arrow-left" size={18} color={isDark ? '#FFFFFF' : '#111827'} />
+            </TouchableOpacity>
+          ),
           headerRight: () => (
             <View style={styles.headerActions}>
-              {quote.status === 'draft' && (
-                <TouchableOpacity onPress={() => router.push(`/quote/new?editId=${id}`)} style={styles.headerButton}>
-                  <FontAwesome name="pencil" size={18} color="#3B82F6" />
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity onPress={handleShare} style={styles.headerButton}>
-                <FontAwesome name="share" size={20} color="#3B82F6" />
+              <TouchableOpacity onPress={() => router.push(`/quote/new?editId=${id}`)} style={styles.headerButton}>
+                <FontAwesome name="pencil" size={18} color="#3B82F6" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleDelete} style={styles.headerButton}>
+                <FontAwesome name="trash-o" size={18} color="#EF4444" />
               </TouchableOpacity>
             </View>
           ),

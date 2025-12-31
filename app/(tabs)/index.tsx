@@ -145,11 +145,18 @@ export default function QuotesScreen() {
   const [filter, setFilter] = useState<FilterType>('all');
 
   const stats = useMemo(() => {
-    const totalValue = quotes.reduce((sum, q) => sum + q.total, 0);
-    const draftCount = quotes.filter(q => q.status === 'draft').length;
-    const sentCount = quotes.filter(q => q.status === 'sent').length;
-    const viewedCount = quotes.filter(q => q.status === 'viewed').length;
-    return { totalValue, draftCount, sentCount, viewedCount };
+    const draftQuotes = quotes.filter(q => q.status === 'draft');
+    const sentQuotes = quotes.filter(q => q.status === 'sent');
+    const viewedQuotes = quotes.filter(q => q.status === 'viewed');
+
+    return {
+      draftCount: draftQuotes.length,
+      sentCount: sentQuotes.length,
+      viewedCount: viewedQuotes.length,
+      draftTotal: draftQuotes.reduce((sum, q) => sum + q.total, 0),
+      sentTotal: sentQuotes.reduce((sum, q) => sum + q.total, 0),
+      viewedTotal: viewedQuotes.reduce((sum, q) => sum + q.total, 0),
+    };
   }, [quotes]);
 
   const filteredQuotes = useMemo(() => {
@@ -168,12 +175,11 @@ export default function QuotesScreen() {
     <View style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F3F4F6' }]}>
       {quotes.length > 0 && (
         <View style={styles.header}>
-          {/* Stats Row */}
+          {/* Stats Row - Financial totals by status */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statsRow} contentContainerStyle={styles.statsContent}>
-            <StatsCard label="Total" value={formatCurrency(stats.totalValue)} icon="dollar" color="#10B981" />
-            <StatsCard label="Drafts" value={String(stats.draftCount)} icon="edit" color="#6B7280" />
-            <StatsCard label="Sent" value={String(stats.sentCount)} icon="send" color="#3B82F6" />
-            <StatsCard label="Viewed" value={String(stats.viewedCount)} icon="eye" color="#F59E0B" />
+            <StatsCard label="Drafts" value={formatCurrency(stats.draftTotal)} icon="edit" color="#6B7280" />
+            <StatsCard label="Sent" value={formatCurrency(stats.sentTotal)} icon="send" color="#3B82F6" />
+            <StatsCard label="Viewed" value={formatCurrency(stats.viewedTotal)} icon="eye" color="#F59E0B" />
           </ScrollView>
 
           {/* Filter Chips */}
