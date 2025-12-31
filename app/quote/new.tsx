@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -14,7 +14,7 @@ import {
   Modal,
   FlatList,
 } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
@@ -36,9 +36,13 @@ interface QuoteLineItem {
 export default function NewQuoteScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const { user, settings, addQuote } = useStore();
+  const { editId } = useLocalSearchParams<{ editId?: string }>();
+  const { user, settings, addQuote, quotes, updateQuote } = useStore();
 
-  const [step, setStep] = useState<'describe' | 'review'>('describe');
+  const isEditing = !!editId;
+  const existingQuote = isEditing ? quotes.find(q => q.id === editId) : null;
+
+  const [step, setStep] = useState<'describe' | 'review'>(isEditing ? 'review' : 'describe');
   const [jobDescription, setJobDescription] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -47,6 +51,23 @@ export default function NewQuoteScreen() {
   const [laborTotal, setLaborTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [notes, setNotes] = useState('');
+
+  // Load existing quote data when editing
+  useEffect(() => {
+    if (existingQuote) {
+      setJobDescription(existingQuote.job_description || '');
+      setCustomerName(existingQuote.customer_name || '');
+      setCustomerPhone(existingQuote.customer_phone || '');
+      setLineItems(existingQuote.line_items || []);
+      setNotes(existingQuote.notes || '');
+      // Calculate labor from existing data
+      const laborRate = settings?.labor_rate || 100;
+      if (existingQuote.labor_total) {
+        setLaborTotal(existingQuote.labor_total);
+        setLaborHours(existingQuote.labor_total / laborRate);
+      }
+    }
+  }, [existingQuote]);
 
   // Item editor modal state
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -236,7 +257,6 @@ export default function NewQuoteScreen() {
     setLoading(true);
     try {
       const quoteData = {
-        user_id: user?.id,
         customer_name: customerName.trim(),
         customer_phone: customerPhone.trim() || null,
         job_description: jobDescription,
@@ -246,32 +266,52 @@ export default function NewQuoteScreen() {
         tax,
         total,
         notes: notes.trim() || null,
-        status: 'draft',
       };
 
-      const { data, error } = await supabase
-        .from('quotes')
-        .insert(quoteData)
-        .select()
-        .single();
+      if (isEditing && editId) {
+        // Update existing quote
+        const { data, error } = await supabase
+          .from('quotes')
+          .update(quoteData)
+          .eq('id', editId)
+          .select()
+          .single();
 
-      if (error) throw error;
+        if (error) throw error;
 
-      if (data) {
-        addQuote(data);
-
-        // Check if there are any guessed items to save to pricebook
-        const guessedItems = lineItems.filter(item => item.is_guess);
-        if (guessedItems.length > 0) {
+        if (data) {
+          updateQuote(editId, data);
           router.replace({
             pathname: '/quote/[id]',
-            params: { id: data.id, showSaveToPricebook: 'true' }
+            params: { id: editId }
           });
-        } else {
-          router.replace({
-            pathname: '/quote/[id]',
-            params: { id: data.id }
-          });
+        }
+      } else {
+        // Create new quote
+        const { data, error } = await supabase
+          .from('quotes')
+          .insert({ ...quoteData, user_id: user?.id, status: 'draft' })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        if (data) {
+          addQuote(data);
+
+          // Check if there are any guessed items to save to pricebook
+          const guessedItems = lineItems.filter(item => item.is_guess);
+          if (guessedItems.length > 0) {
+            router.replace({
+              pathname: '/quote/[id]',
+              params: { id: data.id, showSaveToPricebook: 'true' }
+            });
+          } else {
+            router.replace({
+              pathname: '/quote/[id]',
+              params: { id: data.id }
+            });
+          }
         }
       }
     } catch (error: any) {
@@ -286,7 +326,7 @@ export default function NewQuoteScreen() {
       <>
         <Stack.Screen
           options={{
-            title: 'New Quote',
+            title: isEditing ? 'Edit Quote' : 'New Quote',
             headerLeft: () => (
               <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
                 <FontAwesome name="times" size={20} color={isDark ? '#FFFFFF' : '#111827'} />
@@ -385,10 +425,12 @@ export default function NewQuoteScreen() {
     <>
       <Stack.Screen
         options={{
-          title: 'Review Quote',
+          title: isEditing ? 'Edit Quote' : 'Review Quote',
           headerLeft: () => (
-            <TouchableOpacity onPress={() => setStep('describe')} style={styles.headerButton}>
-              <FontAwesome name="arrow-left" size={18} color={isDark ? '#FFFFFF' : '#111827'} />
+            <TouchableOpacity
+              onPress={() => isEditing ? router.back() : setStep('describe')}
+              style={styles.headerButton}>
+              <FontAwesome name={isEditing ? "times" : "arrow-left"} size={18} color={isDark ? '#FFFFFF' : '#111827'} />
             </TouchableOpacity>
           ),
         }}

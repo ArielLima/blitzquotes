@@ -10,12 +10,15 @@ import {
   Modal,
   Share,
   ActivityIndicator,
+  Linking,
+  Clipboard,
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
-import { formatCurrency, getStatusColor, getStatusLabel } from '@/lib/utils';
+import { formatCurrency, formatPhone, getStatusColor, getStatusLabel, timeAgo } from '@/lib/utils';
+import { getPaymentUrl, getPaymentInstructions, getPaymentButtonLabel } from '@/lib/payments';
 import type { Quote, LineItem } from '@/types';
 
 export default function QuoteDetailScreen() {
@@ -28,9 +31,14 @@ export default function QuoteDetailScreen() {
   const [showPricebookModal, setShowPricebookModal] = useState(showSaveToPricebook === 'true');
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
   const [savingToPricebook, setSavingToPricebook] = useState(false);
+  const [showSendModal, setShowSendModal] = useState(false);
 
   // Get guessed items from quote
   const guessedItems = (quote?.line_items || []).filter((item: any) => item.is_guess);
+
+  // Quote URL for customer view (static page)
+  const quoteBaseUrl = process.env.EXPO_PUBLIC_QUOTE_PAGE_URL || 'https://blitzquotes.com/q';
+  const quoteUrl = `${quoteBaseUrl}?id=${id}`;
 
   useEffect(() => {
     // Auto-select all guessed items initially
@@ -47,50 +55,61 @@ export default function QuoteDetailScreen() {
     );
   }
 
+  const markAsSent = async () => {
+    if (quote.status === 'draft') {
+      try {
+        const { error } = await supabase
+          .from('quotes')
+          .update({ status: 'sent', sent_at: new Date().toISOString() })
+          .eq('id', quote.id);
+
+        if (error) throw error;
+        updateQuote(quote.id, { status: 'sent', sent_at: new Date().toISOString() });
+      } catch (error: any) {
+        console.error('Failed to mark as sent:', error);
+      }
+    }
+  };
+
+  const getShareMessage = () => {
+    const businessName = settings?.business_name || 'Your contractor';
+    return `Hi ${quote.customer_name},\n\nHere's your quote from ${businessName}:\n\nTotal: ${formatCurrency(quote.total)}\n\nView details & pay: ${quoteUrl}`;
+  };
+
+  const handleSendSMS = async () => {
+    if (!quote.customer_phone) {
+      Alert.alert('No Phone Number', 'Add a phone number to send via SMS');
+      return;
+    }
+
+    const message = encodeURIComponent(getShareMessage());
+    const phone = quote.customer_phone.replace(/\D/g, '');
+    const smsUrl = `sms:${phone}&body=${message}`;
+
+    try {
+      await Linking.openURL(smsUrl);
+      setShowSendModal(false);
+      markAsSent();
+    } catch (error) {
+      Alert.alert('Error', 'Could not open SMS app');
+    }
+  };
+
   const handleShare = async () => {
     try {
-      // In production, this would be a web URL like blitzquotes.com/q/{id}
-      const message = `Quote for ${quote.customer_name}\n\nTotal: ${formatCurrency(quote.total)}\n\nView quote: https://blitzquotes.com/q/${quote.id}`;
-      await Share.share({ message });
+      await Share.share({ message: getShareMessage() });
+      setShowSendModal(false);
+      markAsSent();
     } catch (error) {
       console.error('Share error:', error);
     }
   };
 
-  const handleMarkAsSent = async () => {
-    try {
-      const { error } = await supabase
-        .from('quotes')
-        .update({ status: 'sent', sent_at: new Date().toISOString() })
-        .eq('id', quote.id);
-
-      if (error) throw error;
-      updateQuote(quote.id, { status: 'sent', sent_at: new Date().toISOString() });
-    } catch (error: any) {
-      Alert.alert('Error', error.message);
-    }
-  };
-
-  const handleMarkAsPaid = async () => {
-    Alert.alert('Mark as Paid', 'Are you sure this quote has been paid?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Yes, Paid',
-        onPress: async () => {
-          try {
-            const { error } = await supabase
-              .from('quotes')
-              .update({ status: 'paid', paid_at: new Date().toISOString() })
-              .eq('id', quote.id);
-
-            if (error) throw error;
-            updateQuote(quote.id, { status: 'paid', paid_at: new Date().toISOString() });
-          } catch (error: any) {
-            Alert.alert('Error', error.message);
-          }
-        },
-      },
-    ]);
+  const handleCopyLink = () => {
+    Clipboard.setString(quoteUrl);
+    Alert.alert('Copied!', 'Quote link copied to clipboard');
+    setShowSendModal(false);
+    markAsSent();
   };
 
   const toggleItemSelection = (index: number) => {
@@ -151,9 +170,16 @@ export default function QuoteDetailScreen() {
         options={{
           title: 'Quote',
           headerRight: () => (
-            <TouchableOpacity onPress={handleShare} style={styles.headerButton}>
-              <FontAwesome name="share" size={20} color="#3B82F6" />
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              {quote.status === 'draft' && (
+                <TouchableOpacity onPress={() => router.push(`/quote/new?editId=${id}`)} style={styles.headerButton}>
+                  <FontAwesome name="pencil" size={18} color="#3B82F6" />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity onPress={handleShare} style={styles.headerButton}>
+                <FontAwesome name="share" size={20} color="#3B82F6" />
+              </TouchableOpacity>
+            </View>
           ),
         }}
       />
@@ -181,6 +207,14 @@ export default function QuoteDetailScreen() {
             <Text style={[styles.jobDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
               {quote.job_description}
             </Text>
+            {quote.status === 'viewed' && quote.viewed_at && (
+              <View style={styles.viewedBanner}>
+                <FontAwesome name="eye" size={14} color="#F59E0B" />
+                <Text style={styles.viewedBannerText}>
+                  Viewed {timeAgo(quote.viewed_at)}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Line Items */}
@@ -250,25 +284,99 @@ export default function QuoteDetailScreen() {
         {/* Action Buttons */}
         <View style={[styles.footer, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
           {quote.status === 'draft' && (
-            <TouchableOpacity style={styles.primaryButton} onPress={handleMarkAsSent}>
+            <TouchableOpacity style={styles.primaryButton} onPress={() => setShowSendModal(true)}>
               <FontAwesome name="send" size={16} color="#FFFFFF" />
-              <Text style={styles.primaryButtonText}>Mark as Sent</Text>
+              <Text style={styles.primaryButtonText}>Send Quote</Text>
             </TouchableOpacity>
           )}
-          {quote.status === 'sent' && (
-            <TouchableOpacity style={styles.successButton} onPress={handleMarkAsPaid}>
-              <FontAwesome name="check" size={16} color="#FFFFFF" />
-              <Text style={styles.primaryButtonText}>Mark as Paid</Text>
+          {(quote.status === 'sent' || quote.status === 'viewed') && (
+            <TouchableOpacity
+              style={[styles.secondaryButton, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+              onPress={() => setShowSendModal(true)}>
+              <FontAwesome name="share" size={16} color={isDark ? '#FFFFFF' : '#111827'} />
+              <Text style={[styles.secondaryButtonText, { color: isDark ? '#FFFFFF' : '#111827' }]}>Resend</Text>
             </TouchableOpacity>
-          )}
-          {quote.status === 'paid' && (
-            <View style={styles.paidBanner}>
-              <FontAwesome name="check-circle" size={20} color="#10B981" />
-              <Text style={styles.paidText}>Paid</Text>
-            </View>
           )}
         </View>
       </View>
+
+      {/* Send Quote Modal */}
+      <Modal
+        visible={showSendModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowSendModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.sendModalContent, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                Send Quote
+              </Text>
+              <TouchableOpacity onPress={() => setShowSendModal(false)}>
+                <FontAwesome name="times" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.sendModalSubtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              Send to {quote.customer_name}
+              {quote.customer_phone ? ` • ${formatPhone(quote.customer_phone)}` : ''}
+            </Text>
+
+            <View style={styles.sendOptions}>
+              <TouchableOpacity
+                style={[styles.sendOption, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                onPress={handleSendSMS}>
+                <View style={[styles.sendOptionIcon, { backgroundColor: '#10B981' }]}>
+                  <FontAwesome name="comment" size={20} color="#FFFFFF" />
+                </View>
+                <View style={styles.sendOptionText}>
+                  <Text style={[styles.sendOptionTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                    Text Message
+                  </Text>
+                  <Text style={[styles.sendOptionDesc, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                    {quote.customer_phone ? 'Open SMS with quote link' : 'No phone number'}
+                  </Text>
+                </View>
+                <FontAwesome name="chevron-right" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.sendOption, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                onPress={handleShare}>
+                <View style={[styles.sendOptionIcon, { backgroundColor: '#3B82F6' }]}>
+                  <FontAwesome name="share" size={20} color="#FFFFFF" />
+                </View>
+                <View style={styles.sendOptionText}>
+                  <Text style={[styles.sendOptionTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                    Share
+                  </Text>
+                  <Text style={[styles.sendOptionDesc, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                    Email, WhatsApp, other apps
+                  </Text>
+                </View>
+                <FontAwesome name="chevron-right" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.sendOption, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                onPress={handleCopyLink}>
+                <View style={[styles.sendOptionIcon, { backgroundColor: '#8B5CF6' }]}>
+                  <FontAwesome name="link" size={20} color="#FFFFFF" />
+                </View>
+                <View style={styles.sendOptionText}>
+                  <Text style={[styles.sendOptionTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                    Copy Link
+                  </Text>
+                  <Text style={[styles.sendOptionDesc, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                    Copy quote URL to clipboard
+                  </Text>
+                </View>
+                <FontAwesome name="chevron-right" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Save to Pricebook Modal */}
       <Modal
@@ -360,6 +468,11 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 100,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   headerButton: {
     padding: 8,
   },
@@ -394,6 +507,20 @@ const styles = StyleSheet.create({
   jobDescription: {
     fontSize: 15,
     lineHeight: 22,
+  },
+  viewedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  viewedBannerText: {
+    fontSize: 14,
+    color: '#F59E0B',
+    fontWeight: '500',
   },
   sectionHeader: {
     fontSize: 13,
@@ -482,31 +609,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  successButton: {
-    flexDirection: 'row',
-    height: 52,
-    backgroundColor: '#10B981',
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
   primaryButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  paidBanner: {
-    flexDirection: 'row',
-    height: 52,
-    backgroundColor: '#D1FAE5',
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  paidText: {
-    color: '#10B981',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -595,5 +699,57 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  secondaryButton: {
+    flex: 1,
+    flexDirection: 'row',
+    height: 52,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Send modal styles
+  sendModalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 40,
+  },
+  sendModalSubtitle: {
+    fontSize: 15,
+    marginBottom: 20,
+  },
+  sendOptions: {
+    gap: 10,
+  },
+  sendOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 12,
+  },
+  sendOptionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  sendOptionText: {
+    flex: 1,
+  },
+  sendOptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  sendOptionDesc: {
+    fontSize: 13,
+    marginTop: 2,
   },
 });
