@@ -1,6 +1,36 @@
 # BlitzPrices Scrapers
 
-**Status:** PRE-LAUNCH TODO - Build before launch to seed database
+**Status:** IN PROGRESS - Basic scraper built, needs selector debugging
+
+## Quick Start
+
+```bash
+cd scrapers
+npm install
+
+# Create .env with Supabase credentials
+cp .env.example .env
+# Edit .env with your SUPABASE_URL and SUPABASE_SERVICE_KEY
+
+# Test run (dry run, 1 category)
+npm run scrape -- --test --dry-run
+
+# Full run
+npm run scrape
+```
+
+## AWS Deployment
+
+See `deploy/README.md` for EC2 setup instructions.
+
+**Current instance:** `i-000b08ed2cf9c513f` (us-east-2, stopped)
+
+To resume:
+```bash
+aws ec2 start-instances --instance-ids i-000b08ed2cf9c513f
+# Wait ~30s, then SSH in
+ssh -i ~/.ssh/ezFitness.pem ubuntu@<new-ip>
+```
 
 ## Goal
 
