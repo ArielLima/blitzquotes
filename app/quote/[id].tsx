@@ -71,6 +71,21 @@ export default function QuoteDetailScreen() {
     }
   };
 
+  const markAsPaid = async () => {
+    try {
+      const { error } = await supabase
+        .from('quotes')
+        .update({ status: 'paid', paid_at: new Date().toISOString() })
+        .eq('id', quote.id);
+
+      if (error) throw error;
+      updateQuote(quote.id, { status: 'paid', paid_at: new Date().toISOString() });
+      Alert.alert('Success', 'Quote marked as paid!');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to mark as paid');
+    }
+  };
+
   const getShareMessage = () => {
     const businessName = settings?.business_name || 'Your contractor';
     return `Hi ${quote.customer_name},\n\nHere's your quote from ${businessName}:\n\nTotal: ${formatCurrency(quote.total)}\n\nView details & pay: ${quoteUrl}`;
@@ -321,12 +336,24 @@ export default function QuoteDetailScreen() {
             </TouchableOpacity>
           )}
           {(quote.status === 'sent' || quote.status === 'viewed') && (
-            <TouchableOpacity
-              style={[styles.secondaryButton, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
-              onPress={() => setShowSendModal(true)}>
-              <FontAwesome name="share" size={16} color={isDark ? '#FFFFFF' : '#111827'} />
-              <Text style={[styles.secondaryButtonText, { color: isDark ? '#FFFFFF' : '#111827' }]}>Resend</Text>
-            </TouchableOpacity>
+            <View style={styles.footerRow}>
+              <TouchableOpacity
+                style={[styles.secondaryButton, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                onPress={() => setShowSendModal(true)}>
+                <FontAwesome name="share" size={16} color={isDark ? '#FFFFFF' : '#111827'} />
+                <Text style={[styles.secondaryButtonText, { color: isDark ? '#FFFFFF' : '#111827' }]}>Resend</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.paidButton} onPress={markAsPaid}>
+                <FontAwesome name="check" size={16} color="#FFFFFF" />
+                <Text style={styles.paidButtonText}>Mark Paid</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {quote.status === 'paid' && (
+            <View style={styles.paidBanner}>
+              <FontAwesome name="check-circle" size={20} color="#10B981" />
+              <Text style={styles.paidBannerText}>Paid {quote.paid_at ? timeAgo(quote.paid_at) : ''}</Text>
+            </View>
           )}
         </View>
       </View>
@@ -731,6 +758,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  footerRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
   secondaryButton: {
     flex: 1,
     flexDirection: 'row',
@@ -741,6 +772,35 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   secondaryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  paidButton: {
+    flex: 1,
+    flexDirection: 'row',
+    height: 52,
+    backgroundColor: '#10B981',
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  paidButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  paidBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 52,
+    backgroundColor: '#ECFDF5',
+    borderRadius: 14,
+  },
+  paidBannerText: {
+    color: '#10B981',
     fontSize: 16,
     fontWeight: '600',
   },
