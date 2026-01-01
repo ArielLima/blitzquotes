@@ -202,21 +202,26 @@ export default function InvoicesScreen() {
     paid: allJobs.filter(q => q.status === 'paid').length,
   }), [allJobs]);
 
-  // Stats from paid jobs only
+  // Stats calculations
   const stats = useMemo(() => {
-    const paidJobs = allJobs.filter(q => q.status === 'paid');
-    let totalRevenue = 0;
-    let totalProfit = 0;
+    let paidRevenue = 0;
+    let paidProfit = 0;
+    let expectedRevenue = 0;
 
-    paidJobs.forEach(quote => {
-      totalRevenue += quote.total;
+    allJobs.forEach(quote => {
       const materialsCost = quote.line_items.reduce((sum, item: any) => {
         return sum + (item.contractor_cost || item.unit_price * 0.7) * item.qty;
       }, 0);
-      totalProfit += quote.total - materialsCost;
+
+      if (quote.status === 'paid') {
+        paidRevenue += quote.total;
+        paidProfit += quote.total - materialsCost;
+      } else if (quote.status === 'approved' || quote.status === 'invoiced') {
+        expectedRevenue += quote.total;
+      }
     });
 
-    return { revenue: totalRevenue, profit: totalProfit };
+    return { paidRevenue, paidProfit, expectedRevenue };
   }, [allJobs]);
 
   return (
@@ -224,14 +229,20 @@ export default function InvoicesScreen() {
       {/* Stats Cards */}
       <View style={styles.statsContainer}>
         <StatCard
-          label="Total Revenue"
-          value={formatCurrency(stats.revenue)}
+          label="Expected"
+          value={formatCurrency(stats.expectedRevenue)}
+          color="#F59E0B"
+          icon="clock-o"
+        />
+        <StatCard
+          label="Collected"
+          value={formatCurrency(stats.paidRevenue)}
           color="#3B82F6"
           icon="dollar"
         />
         <StatCard
-          label="Total Profit"
-          value={formatCurrency(stats.profit)}
+          label="Profit"
+          value={formatCurrency(stats.paidProfit)}
           color="#10B981"
           icon="line-chart"
         />
@@ -315,25 +326,25 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    padding: 16,
+    padding: 12,
     borderRadius: 12,
     alignItems: 'center',
   },
   statIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '700',
   },
   statLabel: {
-    fontSize: 12,
-    marginTop: 4,
+    fontSize: 11,
+    marginTop: 2,
   },
   sectionHeader: {
     fontSize: 13,
