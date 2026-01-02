@@ -224,75 +224,130 @@ async function generateQuote(
 ) {
   const region = settings.state || 'US';
 
-  // Step 1: Extract key terms from job description (simple parsing, no AI call)
-  const words = jobDescription.toLowerCase()
-    .replace(/[^\w\s]/g, ' ')
-    .split(/\s+/)
-    .filter(w => w.length > 3);
+  // ============================================
+  // STEP 1: AI Call #1 - Extract required items
+  // ============================================
+  console.log('Step 1: Extracting required items...');
 
-  // Get unique meaningful terms (skip common words)
-  const skipWords = new Set(['install', 'replace', 'repair', 'need', 'want', 'with', 'from', 'that', 'this', 'have', 'will', 'would', 'could', 'should', 'about', 'been', 'were', 'they', 'their', 'what', 'when', 'where', 'which', 'there', 'these', 'those', 'some', 'into', 'also', 'just', 'only', 'other', 'than', 'then', 'very', 'after', 'before', 'between', 'under', 'over', 'through']);
-  const searchTerms = [...new Set(words.filter(w => !skipWords.has(w)))].slice(0, 5);
-
-  // Also add the full description as a search term for better matches
-  const allSearchTerms = [jobDescription.slice(0, 50), ...searchTerms];
-  console.log('Search terms:', allSearchTerms);
-
-  // Step 2: Search BlitzPrices for all terms IN PARALLEL
-  const searchPromises = allSearchTerms.map(term => searchBlitzPrices(term, region));
-  const allResults = await Promise.all(searchPromises);
-
-  // Deduplicate results
-  const blitzPricesResults: BlitzPricesItem[] = [];
-  const seenNames = new Set<string>();
-  for (const results of allResults) {
-    for (const item of results) {
-      if (!seenNames.has(item.name.toLowerCase())) {
-        seenNames.add(item.name.toLowerCase());
-        blitzPricesResults.push(item);
-      }
-    }
-  }
-  console.log('BlitzPrices results:', blitzPricesResults.length);
-
-  // Step 3: Single AI call to generate a complete quote
-  const hasBlitzPricesResults = blitzPricesResults.length > 0;
-
-  const messages = [
+  const extractMessages = [
     {
       role: 'system',
-      content: `You are a ${trade} contractor quoting assistant. Be concise.
-Return ONLY valid JSON with materials needed for the job. No explanation.`,
+      content: `You are a ${trade} contractor. Extract the specific materials and items needed for a job.
+Return ONLY a JSON array of search terms. Be specific with brands, sizes, and specs when mentioned.
+Do NOT include tools or equipment the contractor already owns.`,
     },
     {
       role: 'user',
       content: `Job: "${jobDescription}"
 
-${hasBlitzPricesResults
-  ? `BlitzPrices (${region}):\n${blitzPricesResults.slice(0, 10).map(item => `- ${item.name}: $${item.avg_cost}/${item.unit}`).join('\n')}`
-  : `No BlitzPrices data. Estimate retail prices.`}
+Return JSON array of 3-8 specific items/materials needed:
+["item 1 with specs", "item 2 with brand if mentioned", ...]
 
-Labor rate: $${settings.labor_rate}/hr
-
-Return JSON:
-{"line_items":[{"name":"item","category":"materials|fees","qty":1,"unit":"each","retail_price":100,"needs_price":false}],"labor_hours":2}
-
-RULES:
-- Only MATERIALS and FEES - NO tools/equipment (contractor has their own tools)
-- Use BlitzPrices prices when available, estimate others (needs_price:true)
-- Clean item names, no parentheticals
-- No "misc" or catch-all items
-- Be practical for real ${trade} jobs`,
+Examples:
+- "Install Rheem 50 gal water heater" → ["Rheem 50 gallon water heater", "water heater connector kit", "gas flex line", "vent pipe"]
+- "Replace kitchen faucet" → ["kitchen faucet", "faucet supply lines", "plumbers putty"]`,
     },
   ];
 
-  const content = await callOpenRouter(messages, MODEL, 1500);
+  const extractContent = await callOpenRouter(extractMessages, MODEL, 500);
 
-  if (!content || content.trim() === '') {
-    throw new Error('AI returned empty response');
+  if (!extractContent || extractContent.trim() === '') {
+    throw new Error('AI returned empty response for item extraction');
   }
 
-  const aiResult = parseJSONFromResponse(content);
+  let requiredItems: string[];
+  try {
+    requiredItems = parseJSONFromResponse(extractContent);
+    if (!Array.isArray(requiredItems)) {
+      throw new Error('Expected array');
+    }
+  } catch {
+    // Fallback: use the job description itself
+    requiredItems = [jobDescription];
+  }
+
+  console.log('Required items:', requiredItems);
+
+  // ============================================
+  // STEP 2: Parallel BlitzPrices searches
+  // ============================================
+  console.log('Step 2: Searching BlitzPrices...');
+
+  const searchPromises = requiredItems.map(term => searchBlitzPrices(term, region));
+  const allResults = await Promise.all(searchPromises);
+
+  // Build a map of search term -> best matches (for weighted matching)
+  const itemMatches: Map<string, BlitzPricesItem[]> = new Map();
+  const allFoundItems: BlitzPricesItem[] = [];
+  const seenNames = new Set<string>();
+
+  for (let i = 0; i < requiredItems.length; i++) {
+    const term = requiredItems[i];
+    const results = allResults[i] || [];
+    itemMatches.set(term, results);
+
+    for (const item of results) {
+      if (!seenNames.has(item.name.toLowerCase())) {
+        seenNames.add(item.name.toLowerCase());
+        allFoundItems.push(item);
+      }
+    }
+  }
+
+  console.log('BlitzPrices results:', allFoundItems.length);
+
+  // Format found items for AI, grouped by what was searched
+  const foundItemsText = requiredItems.map(term => {
+    const matches = itemMatches.get(term) || [];
+    if (matches.length === 0) {
+      return `- "${term}": NOT FOUND - estimate price`;
+    }
+    const bestMatch = matches[0];
+    return `- "${term}" → ${bestMatch.name}: $${bestMatch.avg_cost}/${bestMatch.unit}`;
+  }).join('\n');
+
+  // ============================================
+  // STEP 3: AI Call #2 - Build final quote
+  // ============================================
+  console.log('Step 3: Building quote...');
+
+  const quoteMessages = [
+    {
+      role: 'system',
+      content: `You are a ${trade} contractor building a quote. Be concise.
+Return ONLY valid JSON. No explanation.`,
+    },
+    {
+      role: 'user',
+      content: `Job: "${jobDescription}"
+
+Price database results:
+${foundItemsText}
+
+Labor rate: $${settings.labor_rate}/hr
+
+Build the quote using found prices. For items marked "NOT FOUND", estimate a realistic retail price.
+
+Return JSON:
+{"line_items":[{"name":"item name","category":"materials|fees","qty":1,"unit":"each","retail_price":100,"from_db":true}],"labor_hours":2}
+
+RULES:
+- Use EXACT prices from database when available (from_db: true)
+- Estimate realistic prices for NOT FOUND items (from_db: false)
+- Set practical quantities based on the job
+- Only MATERIALS and FEES - no tools/equipment
+- Clean names, no parentheticals
+- Estimate labor hours for a professional ${trade}`,
+    },
+  ];
+
+  const quoteContent = await callOpenRouter(quoteMessages, MODEL, 1500);
+
+  if (!quoteContent || quoteContent.trim() === '') {
+    throw new Error('AI returned empty response for quote building');
+  }
+
+  const aiResult = parseJSONFromResponse(quoteContent);
 
   if (!aiResult || !aiResult.line_items) {
     throw new Error('AI response missing line_items');
@@ -301,7 +356,7 @@ RULES:
   // Step 4: Build final quote with discount and markup applied
   // Flow: retail_price → contractor_cost (after discount) → customer_price (after markup)
   const lineItems = aiResult.line_items.map((item: any) => {
-    const retailPrice = item.retail_price || item.cost; // support both old and new format
+    const retailPrice = item.retail_price || item.cost;
     const contractorCost = calculateContractorCost(retailPrice, settings);
     const customerPrice = calculateCustomerPrice(contractorCost, item.category, settings);
 
@@ -314,13 +369,16 @@ RULES:
       contractor_cost: contractorCost,
       unit_price: customerPrice,
       total: Math.round(item.qty * customerPrice * 100) / 100,
-      needs_price: item.needs_price || false,
+      from_db: item.from_db || false,  // true if price came from BlitzPrices
+      needs_price: !item.from_db,       // backwards compat: needs_price = NOT from database
     };
   });
 
   // Calculate labor
   const laborTotal = (aiResult.labor_hours || 0) * settings.labor_rate;
   const helperTotal = (aiResult.helper_hours || 0) * (settings.helper_rate || 0);
+
+  console.log('Quote complete:', lineItems.length, 'items');
 
   return {
     line_items: lineItems,
@@ -331,7 +389,8 @@ RULES:
     helper_rate: settings.helper_rate || 0,
     helper_total: helperTotal,
     notes: aiResult.notes,
-    blitzprices_items_found: blitzPricesResults.length,
+    blitzprices_items_found: allFoundItems.length,
+    items_requested: requiredItems.length,
     contractor_discount: settings.contractor_discount || 0,
   };
 }

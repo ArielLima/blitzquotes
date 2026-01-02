@@ -87,28 +87,50 @@ App applies markup from settings
 Done. Zero tokens.
 ```
 
-#### Mode 2: AI-Assisted (minimal tokens)
+#### Mode 2: AI-Assisted (2-pass approach)
 ```
-User: "Install 50 gal water heater in garage"
+User: "Install XYZ 50 gal water heater in garage with 3/4 copper lines"
          ↓
-Step 1: BlitzPrices search for "water heater" → Found: $485
+Step 1: AI Call #1 - Extract required items (~2 sec)
+   "What specific items are needed for this job?"
          ↓
-Step 2: Small AI call (reasoning only):
-   "Job: Install water heater
-    Found: water heater $485
-    What qty and labor hours needed?
-    What else might be needed?"
+   Returns: ["XYZ 50gal water heater", "3/4 copper pipe",
+             "copper fittings", "gas flex line", "permit"]
          ↓
-AI: { qty: 1, labor_hours: 3, extras: ["permit", "disposal"] }
+Step 2: Parallel BlitzPrices searches (~1 sec)
+   - Search each item
+   - Weight results (brand match > category match)
+   - Return best matches with prices
          ↓
-Step 3: BlitzPrices lookup for extras
+Step 3: AI Call #2 - Build final quote (~4-5 sec)
+   "Here's what we found in the database:
+    - XYZ 50gal water heater: $485
+    - 3/4 copper pipe: $3.50/ft
+    - ...
+    Fill gaps, set quantities, estimate labor hours"
          ↓
-Step 4: Apply user's labor rate + markup
+   Returns: Complete quote with line items + labor
          ↓
-Final quote assembled
+Step 4: Apply user's markup + tax
+         ↓
+Final quote assembled (~10-12 sec total)
 ```
 
-**Token savings:** ~200-400 tokens vs 2,000-5,000 with old approach.
+**Why 2-pass is better:**
+- AI understands job context (e.g., "garage" = might need longer lines)
+- Brand names get matched properly in database
+- Second AI pass fills gaps intelligently
+- More accurate than single-pass keyword extraction
+
+**Loading UX shows progress:**
+```
+⏳ Analyzing job requirements...
+⏳ Searching 50,000+ prices...
+⏳ Building your quote...
+✓ Done!
+```
+
+**Cost:** ~$0.012/quote → ~$1.20/month for 100 quotes (worth it for accuracy)
 
 ---
 
@@ -609,6 +631,15 @@ eas submit            # Submit to stores
 
 ## Roadmap
 
+### In Progress
+- [ ] **2-Pass AI Quote Generation** - More accurate quote building
+  - AI Call #1: Extract required items from job description
+  - Parallel BlitzPrices searches with weighted matching
+  - AI Call #2: Build final quote with found items, fill gaps
+  - Loading UI showing progress steps
+  - ~10-12 seconds, much more accurate than single-pass
+- [ ] **Edit individual line items** - Allow editing items after quote generation (after 2-pass is done)
+
 ### Recently Completed
 - [x] **Invoices** - Full quote to invoice flow
   - Quote → Job (approved) → Invoice status flow
@@ -618,12 +649,13 @@ eas submit            # Submit to stores
   - Mark as paid functionality
   - Valid until date for quotes
 - [x] **Custom Invoice Branding** - Business logo and address on customer-facing pages
-  - Logo displayed in header (requires logo upload in settings - not yet implemented)
-  - Business address shown (requires address field in settings - not yet implemented)
+  - Logo uploaded in Settings
+  - Business address shown on quote/invoice pages
+- [x] **Settings: Logo upload** - Image picker uploads to Supabase storage
+- [x] **Settings: Address field** - Business address input field
+- [x] **AI Model Upgrade** - Switched from gpt-5-mini to claude-sonnet-4 for better results
 
 ### Next Up
-- [ ] **Settings: Logo upload** - Add image picker to upload business logo to Supabase storage
-- [ ] **Settings: Address field** - Add business address input field
 - [ ] **Fix scraper selectors** - Home Depot page structure changed, getting 0 items
 
 ### Future Ideas

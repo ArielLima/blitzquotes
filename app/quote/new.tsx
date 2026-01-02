@@ -47,6 +47,15 @@ export default function NewQuoteScreen() {
   const isDuplicating = !!duplicateId;
   const sourceQuote = isEditing ? quotes.find(q => q.id === editId) : isDuplicating ? quotes.find(q => q.id === duplicateId) : null;
 
+  // Determine document type for titles
+  const getDocumentType = () => {
+    if (!sourceQuote) return 'Quote';
+    if (sourceQuote.type === 'invoice') return 'Invoice';
+    if (sourceQuote.status === 'approved') return 'Job';
+    return 'Quote';
+  };
+  const documentType = getDocumentType();
+
   const [step, setStep] = useState<'describe' | 'review'>((isEditing || isDuplicating) ? 'review' : 'describe');
   const [isManualBuild, setIsManualBuild] = useState(false);
   const [preferredMode, setPreferredMode] = useState<'ai' | 'manual' | null>(null);
@@ -69,6 +78,7 @@ export default function NewQuoteScreen() {
   const [laborHours, setLaborHours] = useState(0);
   const [laborTotal, setLaborTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState<'analyzing' | 'searching' | 'building' | null>(null);
   const [notes, setNotes] = useState('');
 
   // Default valid_until to 30 days from now
@@ -153,6 +163,17 @@ export default function NewQuoteScreen() {
     setPreferredMode('ai');
 
     setLoading(true);
+    setLoadingStep('analyzing');
+
+    // Progress simulation - the API is a single call, so we estimate timing
+    const progressTimer = setInterval(() => {
+      setLoadingStep((current) => {
+        if (current === 'analyzing') return 'searching';
+        if (current === 'searching') return 'building';
+        return current;
+      });
+    }, 3000);
+
     try {
       const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
       const { data: { session } } = await supabase.auth.getSession();
@@ -179,21 +200,24 @@ export default function NewQuoteScreen() {
         },
       });
 
+      clearInterval(progressTimer);
+
       if (error) throw error;
 
       if (data?.items) {
         setLineItems(data.items.line_items || []);
         setLaborHours(data.items.labor_hours || 0);
         setLaborTotal(data.items.labor_total || 0);
-        // Notes are user-entered only, not AI-generated
         setStep('review');
       } else {
         Alert.alert('No items', 'AI could not generate items for this job. Try a more detailed description.');
       }
     } catch (error: any) {
+      clearInterval(progressTimer);
       Alert.alert('Error', error.message || 'Failed to generate quote');
     } finally {
       setLoading(false);
+      setLoadingStep(null);
     }
   };
 
@@ -265,25 +289,30 @@ export default function NewQuoteScreen() {
     setSearchResults([]);
   };
 
-  // Add custom item
+  // Add or update custom item
   const handleAddCustomItem = () => {
-    const price = parseFloat(customPrice);
-    if (!customName.trim() || isNaN(price) || price <= 0) {
+    const unitPrice = parseFloat(customPrice);
+    if (!customName.trim() || isNaN(unitPrice) || unitPrice <= 0) {
       Alert.alert('Error', 'Please enter a valid name and price');
       return;
     }
 
-    const qty = parseInt(customQty) || 1;
+    const qty = parseFloat(customQty) || 1;
+
+    // When editing, preserve the original category; for new items, default to materials
+    const category = editingIndex !== null ? lineItems[editingIndex].category : 'materials';
+
     const newItem: QuoteLineItem = {
       name: customName.trim(),
-      category: 'materials',
+      category,
       qty,
       unit: customUnit || 'each',
-      retail_price: price,
-      contractor_cost: price,
-      unit_price: price,
-      total: price * qty,
+      retail_price: unitPrice, // User enters the final price
+      contractor_cost: unitPrice,
+      unit_price: unitPrice,
+      total: Math.round(unitPrice * qty * 100) / 100,
       needs_price: false,
+      from_db: false,
     };
 
     if (editingIndex !== null) {
@@ -305,18 +334,27 @@ export default function NewQuoteScreen() {
   // Open editor for existing item or new item
   const openItemEditor = (index: number | null) => {
     setEditingIndex(index);
-    setShowCustomForm(false);
+    setSearchResults([]);
+
     if (index !== null) {
-      setSearchQuery(lineItems[index].name);
+      // Editing existing item - pre-fill form with current values
+      const item = lineItems[index];
+      setCustomName(item.name);
+      setCustomPrice(item.unit_price.toString());
+      setCustomQty(item.qty.toString());
+      setCustomUnit(item.unit);
+      setShowCustomForm(true); // Go straight to edit form
+      setSearchQuery('');
     } else {
+      // Adding new item - start with search
+      setCustomName('');
+      setCustomPrice('');
+      setCustomQty('1');
+      setCustomUnit('each');
+      setShowCustomForm(false);
       setSearchQuery('');
     }
-    setSearchResults([]);
-    // Reset custom form fields
-    setCustomName('');
-    setCustomPrice('');
-    setCustomQty('1');
-    setCustomUnit('each');
+
     setEditModalVisible(true);
   };
 
@@ -338,7 +376,19 @@ export default function NewQuoteScreen() {
   };
 
   const handleRemoveItem = (index: number) => {
-    setLineItems(items => items.filter((_, i) => i !== index));
+    const itemName = lineItems[index]?.name || 'this item';
+    Alert.alert(
+      'Remove Item',
+      `Are you sure you want to remove "${itemName}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => setLineItems(items => items.filter((_, i) => i !== index)),
+        },
+      ]
+    );
   };
 
   const handleSaveQuote = async () => {
@@ -444,7 +494,7 @@ export default function NewQuoteScreen() {
       <>
         <Stack.Screen
           options={{
-            title: isEditing ? 'Edit Quote' : isDuplicating ? 'Duplicate Quote' : 'New Quote',
+            title: isEditing ? `Edit ${documentType}` : isDuplicating ? `Duplicate ${documentType}` : 'New Quote',
             headerLeft: () => (
               <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
                 <FontAwesome name="times" size={20} color={isDark ? '#FFFFFF' : '#111827'} />
@@ -602,7 +652,14 @@ export default function NewQuoteScreen() {
               onPress={handleContinue}
               disabled={loading || (preferredMode === 'ai' && !jobDescription.trim())}>
               {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                  <Text style={styles.loadingText}>
+                    {loadingStep === 'analyzing' && 'Analyzing job requirements...'}
+                    {loadingStep === 'searching' && 'Searching prices...'}
+                    {loadingStep === 'building' && 'Building your quote...'}
+                  </Text>
+                </View>
               ) : (
                 <>
                   <FontAwesome
@@ -676,7 +733,7 @@ export default function NewQuoteScreen() {
     <>
       <Stack.Screen
         options={{
-          title: isEditing ? 'Edit Quote' : isDuplicating ? 'Duplicate Quote' : (isManualBuild ? 'Build Quote' : 'Review Quote'),
+          title: isEditing ? `Edit ${documentType}` : isDuplicating ? `Duplicate ${documentType}` : (isManualBuild ? 'Build Quote' : 'Review Quote'),
           headerLeft: () => (
             <TouchableOpacity
               onPress={() => (isEditing || isDuplicating) ? router.back() : setStep('describe')}
@@ -725,9 +782,14 @@ export default function NewQuoteScreen() {
             />
           </View>
 
-          <Text style={[styles.itemsHeader, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-            LINE ITEMS
-          </Text>
+          <View style={styles.itemsHeaderRow}>
+            <Text style={[styles.itemsHeader, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              LINE ITEMS
+            </Text>
+            <Text style={[styles.itemsHeaderHint, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+              Tap to edit
+            </Text>
+          </View>
 
           {lineItems.map((item, index) => (
             <TouchableOpacity
@@ -746,11 +808,13 @@ export default function NewQuoteScreen() {
                     </View>
                   )}
                 </View>
-                <TouchableOpacity
-                  onPress={(e) => { e.stopPropagation(); handleRemoveItem(index); }}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  <FontAwesome name="trash-o" size={18} color="#EF4444" />
-                </TouchableOpacity>
+                <View style={styles.lineItemActions}>
+                  <TouchableOpacity
+                    onPress={(e) => { e.stopPropagation(); handleRemoveItem(index); }}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                    <FontAwesome name="trash-o" size={18} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
               </View>
 
               <View style={styles.lineItemDetails}>
@@ -958,7 +1022,7 @@ export default function NewQuoteScreen() {
                 <Text style={[styles.modalCancel, { color: '#3B82F6' }]}>Cancel</Text>
               </TouchableOpacity>
               <Text style={[styles.modalTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                {editingIndex !== null ? 'Replace Item' : 'Add Item'}
+                {editingIndex !== null ? 'Edit Item' : 'Add Item'}
               </Text>
               <View style={{ width: 60 }} />
             </View>
@@ -1057,7 +1121,9 @@ export default function NewQuoteScreen() {
                 <TouchableOpacity
                   style={styles.customFormButton}
                   onPress={handleAddCustomItem}>
-                  <Text style={styles.customFormButtonText}>Add Item</Text>
+                  <Text style={styles.customFormButtonText}>
+                    {editingIndex !== null ? 'Save Changes' : 'Add Item'}
+                  </Text>
                 </TouchableOpacity>
               </ScrollView>
             ) : (
@@ -1268,6 +1334,16 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
   },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  loadingText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '500',
+  },
   modeToggle: {
     flexDirection: 'row',
     borderRadius: 12,
@@ -1320,12 +1396,21 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     minHeight: 50,
   },
+  itemsHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+    marginLeft: 4,
+    marginRight: 4,
+  },
   itemsHeader: {
     fontSize: 13,
     fontWeight: '600',
     letterSpacing: 0.5,
-    marginBottom: 8,
-    marginLeft: 4,
+  },
+  itemsHeaderHint: {
+    fontSize: 12,
   },
   lineItem: {
     padding: 16,
@@ -1340,9 +1425,13 @@ const styles = StyleSheet.create({
   },
   lineItemInfo: {
     flex: 1,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 4,
+  },
+  lineItemActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'wrap',
     gap: 8,
   },
   lineItemName: {
