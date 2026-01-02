@@ -8,10 +8,11 @@ import {
   useColorScheme,
   TextInput,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { Link } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { useStore } from '@/lib/store';
+import { useStore, DATE_RANGE_OPTIONS, type DateRange } from '@/lib/store';
 import { formatCurrency, timeAgo, getStatusColor, getStatusLabel } from '@/lib/utils';
 import type { Quote } from '@/types';
 
@@ -127,9 +128,10 @@ function EmptyState({ filter }: { filter: FilterType }) {
 export default function QuotesScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const { quotes } = useStore();
+  const { quotes, dateRange, setDateRange } = useStore();
   const [filter, setFilter] = useState<FilterType>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Only show pending quotes (draft, sent, viewed) - not jobs (approved, invoiced, paid)
   const quotesOnly = useMemo(() => {
@@ -209,6 +211,15 @@ export default function QuotesScreen() {
                 <FontAwesome name="times-circle" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
               </TouchableOpacity>
             )}
+            <View style={[styles.searchDivider, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]} />
+            <TouchableOpacity
+              style={styles.dateFilterButton}
+              onPress={() => setShowDatePicker(true)}>
+              <FontAwesome name="calendar" size={14} color="#3B82F6" />
+              <Text style={styles.dateFilterText}>
+                {DATE_RANGE_OPTIONS.find(o => o.value === dateRange)?.label.replace(' Days', 'd').replace(' Time', '')}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -230,6 +241,47 @@ export default function QuotesScreen() {
           <FontAwesome name="plus" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </Link>
+
+      {/* Date Range Picker Modal */}
+      <Modal
+        visible={showDatePicker}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDatePicker(false)}>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowDatePicker(false)}>
+          <View style={[styles.datePickerModal, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+            <Text style={[styles.datePickerTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+              Show quotes from
+            </Text>
+            {DATE_RANGE_OPTIONS.map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.datePickerOption,
+                  dateRange === option.value && styles.datePickerOptionActive,
+                ]}
+                onPress={() => {
+                  setDateRange(option.value);
+                  setShowDatePicker(false);
+                }}>
+                <Text style={[
+                  styles.datePickerOptionText,
+                  { color: isDark ? '#FFFFFF' : '#111827' },
+                  dateRange === option.value && styles.datePickerOptionTextActive,
+                ]}>
+                  {option.label}
+                </Text>
+                {dateRange === option.value && (
+                  <FontAwesome name="check" size={16} color="#3B82F6" />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -384,5 +436,64 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  searchDivider: {
+    width: 1,
+    height: 20,
+    marginHorizontal: 8,
+  },
+  dateFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  dateFilterText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#3B82F6',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  datePickerModal: {
+    width: '80%',
+    maxWidth: 300,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  datePickerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  datePickerOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  datePickerOptionActive: {
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  datePickerOptionText: {
+    fontSize: 16,
+  },
+  datePickerOptionTextActive: {
+    fontWeight: '600',
+    color: '#3B82F6',
   },
 });

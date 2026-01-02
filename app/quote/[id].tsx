@@ -579,7 +579,7 @@ export default function QuoteDetailScreen() {
       {/* Send Quote Modal */}
       <Modal
         visible={showSendModal}
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         onRequestClose={() => setShowSendModal(false)}>
         <View style={styles.modalOverlay}>
@@ -657,7 +657,7 @@ export default function QuoteDetailScreen() {
       {/* Convert to Invoice Modal */}
       <Modal
         visible={showInvoiceModal}
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         onRequestClose={() => {
           setShowInvoiceModal(false);
@@ -808,7 +808,7 @@ export default function QuoteDetailScreen() {
       {/* Save to Pricebook Modal */}
       <Modal
         visible={showPricebookModal}
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         onRequestClose={() => setShowPricebookModal(false)}>
         <View style={styles.modalOverlay}>

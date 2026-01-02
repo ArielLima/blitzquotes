@@ -18,7 +18,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
-import { getRegions } from '@/lib/blitzprices';
+import { getRegions, getStateTaxRate } from '@/lib/blitzprices';
 import { PAYMENT_METHODS } from '@/lib/payments';
 import type { PaymentMethod } from '@/types';
 
@@ -31,6 +31,7 @@ export default function OnboardingBusinessScreen() {
   const [businessName, setBusinessName] = useState('');
   const [state, setState] = useState('');
   const [zipCode, setZipCode] = useState('');
+  const [taxRate, setTaxRate] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('none');
   const [loading, setLoading] = useState(false);
   const [statePickerVisible, setStatePickerVisible] = useState(false);
@@ -38,6 +39,12 @@ export default function OnboardingBusinessScreen() {
 
   const regions = getRegions();
   const selectedState = regions.find(r => r.value === state);
+
+  const handleStateChange = (stateCode: string) => {
+    setState(stateCode);
+    const defaultRate = getStateTaxRate(stateCode);
+    setTaxRate((defaultRate * 100).toFixed(2));
+  };
   const selectedPayment = PAYMENT_METHODS[paymentMethod];
 
   const paymentOptions = Object.entries(PAYMENT_METHODS).map(([key, val]) => ({
@@ -60,7 +67,7 @@ export default function OnboardingBusinessScreen() {
           business_name: businessName.trim(),
           state: state,
           zip_code: zipCode || null,
-          default_tax_rate: 0,
+          default_tax_rate: (parseFloat(taxRate) || 0) / 100,
           contractor_discount: 0,  // Can be set up later in Settings
           default_markup: 0.35,
           material_markup: 0.35,
@@ -155,31 +162,59 @@ export default function OnboardingBusinessScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: isDark ? '#D1D5DB' : '#374151' }]}>
-            ZIP Code
-          </Text>
-          <Text style={[styles.labelHint, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
-            Optional - for more accurate pricing
-          </Text>
-          <TextInput
-            style={[
+        <View style={styles.rowInputs}>
+          <View style={[styles.inputContainer, { flex: 1 }]}>
+            <Text style={[styles.label, { color: isDark ? '#D1D5DB' : '#374151' }]}>
+              ZIP Code
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                  color: isDark ? '#FFFFFF' : '#111827',
+                  borderColor: isDark ? '#374151' : '#E5E7EB',
+                },
+              ]}
+              placeholder="12345"
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              value={zipCode}
+              onChangeText={(text) => setZipCode(text.replace(/\D/g, '').slice(0, 5))}
+              keyboardType="number-pad"
+              maxLength={5}
+            />
+          </View>
+
+          <View style={[styles.inputContainer, { flex: 1 }]}>
+            <Text style={[styles.label, { color: isDark ? '#D1D5DB' : '#374151' }]}>
+              Tax Rate
+            </Text>
+            <View style={[
               styles.input,
-              styles.zipInput,
+              styles.taxInputWrapper,
               {
                 backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                color: isDark ? '#FFFFFF' : '#111827',
                 borderColor: isDark ? '#374151' : '#E5E7EB',
               },
-            ]}
-            placeholder="12345"
-            placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-            value={zipCode}
-            onChangeText={(text) => setZipCode(text.replace(/\D/g, '').slice(0, 5))}
-            keyboardType="number-pad"
-            maxLength={5}
-          />
+            ]}>
+              <TextInput
+                style={[styles.taxInput, { color: isDark ? '#FFFFFF' : '#111827' }]}
+                placeholder="0"
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                value={taxRate}
+                onChangeText={(text) => setTaxRate(text.replace(/[^0-9.]/g, ''))}
+                keyboardType="decimal-pad"
+              />
+              <Text style={[styles.taxSuffix, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>%</Text>
+            </View>
+          </View>
         </View>
+
+        {state && (
+          <Text style={[styles.taxHint, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+            Default for {selectedState?.label}. Adjust if your local rate differs.
+          </Text>
+        )}
 
         <View style={styles.inputContainer}>
           <Text style={[styles.label, { color: isDark ? '#D1D5DB' : '#374151' }]}>
@@ -239,7 +274,7 @@ export default function OnboardingBusinessScreen() {
       </View>
 
       {/* State Picker Modal */}
-      <Modal visible={statePickerVisible} transparent animationType="slide">
+      <Modal visible={statePickerVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
             <View style={styles.modalHeader}>
@@ -261,7 +296,7 @@ export default function OnboardingBusinessScreen() {
                     state === item.value && { backgroundColor: isDark ? '#374151' : '#F3F4F6' },
                   ]}
                   onPress={() => {
-                    setState(item.value);
+                    handleStateChange(item.value);
                     setStatePickerVisible(false);
                   }}>
                   <Text style={[styles.modalOptionText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
@@ -278,7 +313,7 @@ export default function OnboardingBusinessScreen() {
       </Modal>
 
       {/* Payment Method Picker Modal */}
-      <Modal visible={paymentPickerVisible} transparent animationType="slide">
+      <Modal visible={paymentPickerVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
             <View style={styles.modalHeader}>
@@ -375,8 +410,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 17,
   },
-  zipInput: {
-    width: 120,
+  rowInputs: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  taxInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  taxInput: {
+    flex: 1,
+    fontSize: 17,
+    height: '100%',
+  },
+  taxSuffix: {
+    fontSize: 17,
+    marginRight: 4,
+  },
+  taxHint: {
+    fontSize: 13,
+    marginTop: -16,
   },
   footer: {
     padding: 24,

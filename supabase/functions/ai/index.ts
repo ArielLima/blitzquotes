@@ -5,9 +5,8 @@ const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-// IMPORTANT: Always use gpt-5-mini for all AI calls. Do not change this.
-const MODEL = 'openai/gpt-5-mini';
-const VISION_MODEL = 'openai/gpt-5-mini';
+const MODEL = 'anthropic/claude-sonnet-4';
+const VISION_MODEL = 'anthropic/claude-sonnet-4';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -75,32 +74,6 @@ async function searchBlitzPrices(query: string, region: string): Promise<BlitzPr
   return data || [];
 }
 
-// Extract search terms from a job description using AI
-async function extractSearchTerms(jobDescription: string, trade: string): Promise<string[]> {
-  const messages = [
-    {
-      role: 'system',
-      content: `You extract material/equipment search terms from job descriptions for a ${trade} contractor.
-Return ONLY a JSON array of 3-6 specific search terms for items that would be needed.
-Focus on main materials and equipment, not small consumables.`,
-    },
-    {
-      role: 'user',
-      content: `Job: "${jobDescription}"
-
-Return JSON array of search terms, e.g.: ["50 gallon water heater", "water heater connector", "gas flex line"]`,
-    },
-  ];
-
-  const content = await callOpenRouter(messages);
-  try {
-    return parseJSONFromResponse(content);
-  } catch {
-    // Fallback: split job description into key terms
-    return jobDescription.split(/\s+/).filter(w => w.length > 3).slice(0, 5);
-  }
-}
-
 // Calculate contractor cost from retail price (apply discount)
 function calculateContractorCost(retailPrice: number, settings: UserSettings): number {
   const discount = settings.contractor_discount || 0;
@@ -120,7 +93,13 @@ function calculateCustomerPrice(contractorCost: number, category: string, settin
   return Math.round(contractorCost * (1 + markup) * 100) / 100;
 }
 
-async function callOpenRouter(messages: any[], model: string = MODEL): Promise<string> {
+async function callOpenRouter(messages: any[], model: string = MODEL, maxTokens: number = 1000): Promise<string> {
+  if (!OPENROUTER_API_KEY) {
+    throw new Error('OPENROUTER_API_KEY not configured');
+  }
+
+  console.log('Calling OpenRouter with model:', model);
+
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -132,16 +111,36 @@ async function callOpenRouter(messages: any[], model: string = MODEL): Promise<s
     body: JSON.stringify({
       model,
       messages,
+      max_tokens: maxTokens,
+      temperature: 0.3,
     }),
   });
 
+  const responseText = await response.text();
+  console.log('OpenRouter response status:', response.status);
+
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`OpenRouter error: ${error}`);
+    console.error('OpenRouter error response:', responseText);
+    throw new Error(`OpenRouter error (${response.status}): ${responseText}`);
   }
 
-  const data = await response.json();
-  return data.choices[0].message.content;
+  let data;
+  try {
+    data = JSON.parse(responseText);
+  } catch (e) {
+    console.error('Failed to parse OpenRouter response:', responseText);
+    throw new Error('OpenRouter returned invalid JSON');
+  }
+
+  if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+    console.error('Unexpected OpenRouter response structure:', JSON.stringify(data));
+    throw new Error('OpenRouter response missing choices');
+  }
+
+  const content = data.choices[0].message.content;
+  console.log('OpenRouter content length:', content?.length || 0);
+
+  return content || '';
 }
 
 function parseJSONFromResponse(content: string): any {
@@ -225,18 +224,29 @@ async function generateQuote(
 ) {
   const region = settings.state || 'US';
 
-  // Step 1: Extract search terms from job description
-  const searchTerms = await extractSearchTerms(jobDescription, trade);
-  console.log('Search terms:', searchTerms);
+  // Step 1: Extract key terms from job description (simple parsing, no AI call)
+  const words = jobDescription.toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 3);
 
-  // Step 2: Search BlitzPrices for each term
+  // Get unique meaningful terms (skip common words)
+  const skipWords = new Set(['install', 'replace', 'repair', 'need', 'want', 'with', 'from', 'that', 'this', 'have', 'will', 'would', 'could', 'should', 'about', 'been', 'were', 'they', 'their', 'what', 'when', 'where', 'which', 'there', 'these', 'those', 'some', 'into', 'also', 'just', 'only', 'other', 'than', 'then', 'very', 'after', 'before', 'between', 'under', 'over', 'through']);
+  const searchTerms = [...new Set(words.filter(w => !skipWords.has(w)))].slice(0, 5);
+
+  // Also add the full description as a search term for better matches
+  const allSearchTerms = [jobDescription.slice(0, 50), ...searchTerms];
+  console.log('Search terms:', allSearchTerms);
+
+  // Step 2: Search BlitzPrices for all terms IN PARALLEL
+  const searchPromises = allSearchTerms.map(term => searchBlitzPrices(term, region));
+  const allResults = await Promise.all(searchPromises);
+
+  // Deduplicate results
   const blitzPricesResults: BlitzPricesItem[] = [];
   const seenNames = new Set<string>();
-
-  for (const term of searchTerms) {
-    const results = await searchBlitzPrices(term, region);
+  for (const results of allResults) {
     for (const item of results) {
-      // Deduplicate by name
       if (!seenNames.has(item.name.toLowerCase())) {
         seenNames.add(item.name.toLowerCase());
         blitzPricesResults.push(item);
@@ -245,68 +255,48 @@ async function generateQuote(
   }
   console.log('BlitzPrices results:', blitzPricesResults.length);
 
-  // Step 3: AI reasons about quantities, labor, and what's missing
-  // Note: BlitzPrices stores RETAIL prices, we apply contractor discount later
+  // Step 3: Single AI call to generate a complete quote
   const hasBlitzPricesResults = blitzPricesResults.length > 0;
 
   const messages = [
     {
       role: 'system',
-      content: `You are a ${trade} contractor quoting assistant.
-
-Your job is to:
-1. Create a complete quote with all materials needed for the job
-2. Set appropriate quantities for each item
-3. Estimate labor hours needed
-4. ${hasBlitzPricesResults ? 'Use prices from BlitzPrices when available, estimate others' : 'Estimate realistic retail prices for all items'}
-
-Labor rate: $${settings.labor_rate}/hr
-${settings.helper_rate ? `Helper rate: $${settings.helper_rate}/hr` : ''}
-
-ALWAYS return line items - never return an empty list. Estimate prices if needed.
-Return ONLY valid JSON, no explanation.`,
+      content: `You are a ${trade} contractor quoting assistant. Be concise.
+Return ONLY valid JSON with materials needed for the job. No explanation.`,
     },
     {
       role: 'user',
       content: `Job: "${jobDescription}"
 
 ${hasBlitzPricesResults
-  ? `Found retail prices from BlitzPrices (${region}):\n${blitzPricesResults.map(item => `- ${item.name}: $${item.avg_cost}/${item.unit} (${item.category})`).join('\n')}`
-  : `No items found in BlitzPrices. Estimate realistic retail prices for all needed materials.`}
+  ? `BlitzPrices (${region}):\n${blitzPricesResults.slice(0, 10).map(item => `- ${item.name}: $${item.avg_cost}/${item.unit}`).join('\n')}`
+  : `No BlitzPrices data. Estimate retail prices.`}
+
+Labor rate: $${settings.labor_rate}/hr
 
 Return JSON:
-{
-  "line_items": [
-    {
-      "name": "specific item name with size/specs",
-      "category": "materials|equipment|fees",
-      "qty": 1,
-      "unit": "each",
-      "retail_price": 100,
-      "needs_price": ${!hasBlitzPricesResults}
-    }
-  ],
-  "labor_hours": 3,
-  "helper_hours": 0,
-  "notes": "any important notes about the job"
-}
+{"line_items":[{"name":"item","category":"materials|fees","qty":1,"unit":"each","retail_price":100,"needs_price":false}],"labor_hours":2}
 
-IMPORTANT:
-- ALWAYS include line items - estimate prices if BlitzPrices has no data
-- Use EXACT prices from BlitzPrices when available (needs_price: false)
-- For estimated prices, set needs_price: true so contractor can verify
-- Keep item names CLEAN and CONCISE - just the item with size/specs
-  - GOOD: "50x30 Vinyl Window Double-Hung"
-  - BAD: "Window (for replacement of existing frame)"
-- Do NOT add explanatory parentheticals to item names
-- Do NOT include "misc consumables" or generic catch-all items
-- Only include specific, tangible materials the contractor will purchase
-- Be practical about quantities and labor for real ${trade} jobs`,
+RULES:
+- Only MATERIALS and FEES - NO tools/equipment (contractor has their own tools)
+- Use BlitzPrices prices when available, estimate others (needs_price:true)
+- Clean item names, no parentheticals
+- No "misc" or catch-all items
+- Be practical for real ${trade} jobs`,
     },
   ];
 
-  const content = await callOpenRouter(messages);
+  const content = await callOpenRouter(messages, MODEL, 1500);
+
+  if (!content || content.trim() === '') {
+    throw new Error('AI returned empty response');
+  }
+
   const aiResult = parseJSONFromResponse(content);
+
+  if (!aiResult || !aiResult.line_items) {
+    throw new Error('AI response missing line_items');
+  }
 
   // Step 4: Build final quote with discount and markup applied
   // Flow: retail_price → contractor_cost (after discount) → customer_price (after markup)

@@ -3,6 +3,24 @@ import { supabase } from './supabase';
 import type { User } from '@supabase/supabase-js';
 import type { PricebookItem, Quote, UserSettings } from '../types';
 
+export type DateRange = 'all' | '7d' | '30d' | '90d';
+
+export const DATE_RANGE_OPTIONS: { value: DateRange; label: string }[] = [
+  { value: 'all', label: 'All Time' },
+  { value: '7d', label: '7 Days' },
+  { value: '30d', label: '30 Days' },
+  { value: '90d', label: '90 Days' },
+];
+
+function getDateRangeStart(range: DateRange): string | null {
+  if (range === 'all') return null;
+  const days = parseInt(range);
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  date.setHours(0, 0, 0, 0);
+  return date.toISOString();
+}
+
 interface AppState {
   // Auth
   user: User | null;
@@ -13,6 +31,7 @@ interface AppState {
   settings: UserSettings | null;
   pricebook: PricebookItem[];
   quotes: Quote[];
+  dateRange: DateRange;
 
   // Actions
   setUser: (user: User | null) => void;
@@ -21,6 +40,7 @@ interface AppState {
   setSettings: (settings: UserSettings | null) => void;
   setPricebook: (items: PricebookItem[]) => void;
   setQuotes: (quotes: Quote[]) => void;
+  setDateRange: (range: DateRange) => Promise<void>;
   addPricebookItem: (item: PricebookItem) => void;
   updatePricebookItem: (id: string, item: Partial<PricebookItem>) => void;
   deletePricebookItem: (id: string) => void;
@@ -31,7 +51,7 @@ interface AppState {
   // Data fetching
   fetchSettings: () => Promise<void>;
   fetchPricebook: () => Promise<void>;
-  fetchQuotes: () => Promise<void>;
+  fetchQuotes: (range?: DateRange) => Promise<void>;
   fetchUserData: () => Promise<void>;
   initialize: () => Promise<void>;
 }
@@ -44,6 +64,7 @@ export const useStore = create<AppState>((set, get) => ({
   settings: null,
   pricebook: [],
   quotes: [],
+  dateRange: '30d',
 
   // Setters
   setUser: (user) => set({ user }),
@@ -52,6 +73,10 @@ export const useStore = create<AppState>((set, get) => ({
   setSettings: (settings) => set({ settings }),
   setPricebook: (pricebook) => set({ pricebook }),
   setQuotes: (quotes) => set({ quotes }),
+  setDateRange: async (range) => {
+    set({ dateRange: range });
+    await get().fetchQuotes(range);
+  },
 
   // Pricebook actions
   addPricebookItem: (item) =>
@@ -119,15 +144,24 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  fetchQuotes: async () => {
-    const { user } = get();
+  fetchQuotes: async (range?: DateRange) => {
+    const { user, dateRange } = get();
     if (!user) return;
 
-    const { data, error } = await supabase
+    const effectiveRange = range ?? dateRange;
+    const startDate = getDateRangeStart(effectiveRange);
+
+    let query = supabase
       .from('quotes')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
+
+    if (startDate) {
+      query = query.gte('created_at', startDate);
+    }
+
+    const { data, error } = await query;
 
     if (data) {
       set({ quotes: data });

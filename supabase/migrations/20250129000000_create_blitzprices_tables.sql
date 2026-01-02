@@ -197,7 +197,7 @@ BEGIN
     pa.min_cost,
     pa.max_cost,
     pa.sample_size,
-    similarity(pa.name_normalized, LOWER(TRIM(search_query))) AS sim,
+    similarity(pa.name_normalized, LOWER(TRIM(search_query)))::NUMERIC AS sim,
     CASE
       WHEN similarity(pa.name_normalized, LOWER(TRIM(search_query))) > 0.5 THEN 'high'
       WHEN similarity(pa.name_normalized, LOWER(TRIM(search_query))) > 0.3 THEN 'medium'

@@ -14,6 +14,7 @@ import {
   Modal,
   FlatList,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -74,15 +75,19 @@ export default function NewQuoteScreen() {
   const getDefaultValidUntil = () => {
     const date = new Date();
     date.setDate(date.getDate() + 30);
-    return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+    return date;
   };
-  const [validUntil, setValidUntil] = useState(getDefaultValidUntil());
+  const [validUntilDate, setValidUntilDate] = useState<Date>(getDefaultValidUntil());
+  const [showValidUntilPicker, setShowValidUntilPicker] = useState(false);
 
-  // Format date for display (YYYY-MM-DD -> "Jan 15, 2025")
-  const formatDateDisplay = (dateStr: string) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr + 'T00:00:00');
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  // Convert Date to YYYY-MM-DD string for database
+  const toDateString = (date: Date) => date.toISOString().split('T')[0];
+
+  // Format date for display
+  const formatDateDisplay = (date: Date | string) => {
+    if (!date) return '';
+    const d = typeof date === 'string' ? new Date(date + 'T00:00:00') : date;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   // Load existing quote data when editing or duplicating
@@ -96,7 +101,7 @@ export default function NewQuoteScreen() {
       setNotes(isDuplicating ? '' : sourceQuote.notes || '');
       // Load valid_until or default to 30 days
       if (sourceQuote.valid_until && !isDuplicating) {
-        setValidUntil(sourceQuote.valid_until);
+        setValidUntilDate(new Date(sourceQuote.valid_until + 'T00:00:00'));
       }
       // Calculate labor from existing data
       const laborRate = settings?.labor_rate || 100;
@@ -365,7 +370,7 @@ export default function NewQuoteScreen() {
         tax,
         total,
         notes: notes.trim() || null,
-        valid_until: validUntil || null,
+        valid_until: toDateString(validUntilDate),
       };
 
       if (isEditing && editId) {
@@ -576,12 +581,14 @@ export default function NewQuoteScreen() {
               <Text style={[styles.sectionTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
                 Quote valid until
               </Text>
-              <View style={[styles.dateField, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF', borderColor: isDark ? '#374151' : '#E5E7EB' }]}>
+              <TouchableOpacity
+                style={[styles.dateField, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF', borderColor: isDark ? '#374151' : '#E5E7EB' }]}
+                onPress={() => setShowValidUntilPicker(true)}>
                 <FontAwesome name="calendar" size={16} color={isDark ? '#6B7280' : '#9CA3AF'} />
                 <Text style={[styles.dateText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                  {formatDateDisplay(validUntil)}
+                  {formatDateDisplay(validUntilDate)}
                 </Text>
-              </View>
+              </TouchableOpacity>
             </View>
           </ScrollView>
 
@@ -610,6 +617,55 @@ export default function NewQuoteScreen() {
               )}
             </TouchableOpacity>
           </View>
+
+          {/* Valid Until Date Picker Modal */}
+          <Modal
+            visible={showValidUntilPicker}
+            animationType="fade"
+            transparent={true}
+            onRequestClose={() => setShowValidUntilPicker(false)}>
+            <View style={styles.dateModalOverlay}>
+              <View style={[styles.dateModalContent, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+                <View style={styles.dateModalHeader}>
+                  <Text style={[styles.dateModalTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                    Quote Valid Until
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowValidUntilPicker(false)}>
+                    <FontAwesome name="times" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.datePickerWrapper}>
+                  {Platform.OS === 'ios' ? (
+                    <DateTimePicker
+                      value={validUntilDate}
+                      mode="date"
+                      display="spinner"
+                      onChange={(event, date) => {
+                        if (date) setValidUntilDate(date);
+                      }}
+                      style={styles.datePicker}
+                    />
+                  ) : (
+                    <DateTimePicker
+                      value={validUntilDate}
+                      mode="date"
+                      display="default"
+                      onChange={(event, date) => {
+                        if (date) setValidUntilDate(date);
+                      }}
+                    />
+                  )}
+                </View>
+
+                <TouchableOpacity
+                  style={styles.dateModalButton}
+                  onPress={() => setShowValidUntilPicker(false)}>
+                  <Text style={styles.dateModalButtonText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
         </KeyboardAvoidingView>
       </>
     );
@@ -889,7 +945,7 @@ export default function NewQuoteScreen() {
         </View>
 
         {/* Item Search Modal */}
-        <Modal visible={editModalVisible} animationType="slide" presentationStyle="pageSheet">
+        <Modal visible={editModalVisible} animationType="fade" presentationStyle="pageSheet">
           <View style={[styles.modalContainer, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
             <View style={[styles.modalHeader, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
               <TouchableOpacity onPress={() => {
@@ -1131,6 +1187,47 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 16,
+  },
+  dateModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  dateModalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 40,
+  },
+  dateModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  dateModalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  datePickerWrapper: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  datePicker: {
+    width: '100%',
+    height: 200,
+  },
+  dateModalButton: {
+    height: 52,
+    backgroundColor: '#3B82F6',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dateModalButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   input: {
     height: 52,

@@ -11,8 +11,11 @@ import {
   TextInput,
   Switch,
   FlatList,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import * as ImagePicker from 'expo-image-picker';
 import { useStore } from '@/lib/store';
 import { signOut, supabase } from '@/lib/supabase';
 import { PAYMENT_METHODS } from '@/lib/payments';
@@ -116,7 +119,7 @@ function PickerModal({
   const isDark = colorScheme === 'dark';
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="fade">
       <View style={styles.modalOverlay}>
         <View style={[styles.pickerModalContent, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
           <View style={styles.pickerModalHeader}>
@@ -290,6 +293,59 @@ export default function SettingsScreen() {
 
   const [statePickerVisible, setStatePickerVisible] = useState(false);
   const [paymentPickerVisible, setPaymentPickerVisible] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  const pickAndUploadLogo = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (result.canceled || !result.assets[0]) return;
+
+      setUploadingLogo(true);
+
+      const asset = result.assets[0];
+      const fileExt = asset.uri.split('.').pop()?.toLowerCase() || 'jpg';
+      const fileName = `${user?.id}/logo.${fileExt}`;
+
+      // Fetch the image and convert to blob
+      const response = await fetch(asset.uri);
+      const blob = await response.blob();
+
+      // Convert blob to ArrayBuffer for Supabase
+      const arrayBuffer = await new Response(blob).arrayBuffer();
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('logos')
+        .upload(fileName, arrayBuffer, {
+          contentType: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
+          upsert: true,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('logos')
+        .getPublicUrl(fileName);
+
+      // Add cache-busting parameter
+      const logoUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+      // Update settings with logo URL
+      await updateSetting('logo_url', logoUrl);
+    } catch (error: any) {
+      console.error('Logo upload error:', error);
+      Alert.alert('Error', error.message || 'Failed to upload logo');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
 
   const updateSetting = async (field: string, value: any) => {
     if (!user || !settings) return;
@@ -390,19 +446,40 @@ export default function SettingsScreen() {
       contentContainerStyle={styles.content}>
 
       {/* Business Header Card */}
-      <TouchableOpacity
-        style={[styles.businessCard, { backgroundColor: isDark ? '#374151' : '#FFFFFF' }]}
-        onPress={() => openEditModal('business_name', 'Business Name', settings?.business_name || '')}
-        activeOpacity={0.7}>
-        <Text
-          style={[styles.businessCardName, { color: isDark ? '#FFFFFF' : '#111827' }]}
-          numberOfLines={2}
-          adjustsFontSizeToFit
-          minimumFontScale={0.75}>
-          {settings?.business_name || 'Your Business'}
-        </Text>
-        <FontAwesome name="pencil" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
-      </TouchableOpacity>
+      <View style={[styles.businessCard, { backgroundColor: isDark ? '#374151' : '#FFFFFF' }]}>
+        <TouchableOpacity
+          style={styles.logoContainer}
+          onPress={pickAndUploadLogo}
+          disabled={uploadingLogo}>
+          {uploadingLogo ? (
+            <View style={[styles.logoPlaceholder, { backgroundColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
+              <ActivityIndicator color="#3B82F6" />
+            </View>
+          ) : settings?.logo_url ? (
+            <Image source={{ uri: settings.logo_url }} style={styles.logo} />
+          ) : (
+            <View style={[styles.logoPlaceholder, { backgroundColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
+              <FontAwesome name="camera" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+            </View>
+          )}
+          <View style={styles.logoEditBadge}>
+            <FontAwesome name="pencil" size={10} color="#FFFFFF" />
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.businessNameContainer}
+          onPress={() => openEditModal('business_name', 'Business Name', settings?.business_name || '')}
+          activeOpacity={0.7}>
+          <Text
+            style={[styles.businessCardName, { color: isDark ? '#FFFFFF' : '#111827' }]}
+            numberOfLines={2}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}>
+            {settings?.business_name || 'Your Business'}
+          </Text>
+          <FontAwesome name="pencil" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+        </TouchableOpacity>
+      </View>
 
       <SectionHeader title="CONTACT" />
       <View style={styles.section}>
@@ -429,6 +506,12 @@ export default function SettingsScreen() {
           label="ZIP Code"
           value={settings?.zip_code || 'Not set'}
           onPress={() => openEditModal('zip_code', 'ZIP Code', settings?.zip_code || '', { keyboardType: 'numeric' })}
+        />
+        <SettingsRow
+          icon="building"
+          label="Address"
+          value={settings?.business_address || 'Not set'}
+          onPress={() => openEditModal('business_address', 'Business Address', settings?.business_address || '')}
           isLast
         />
       </View>
@@ -587,11 +670,43 @@ const styles = StyleSheet.create({
   businessCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     marginHorizontal: 16,
     marginTop: 16,
     padding: 14,
     borderRadius: 12,
+    gap: 14,
+  },
+  logoContainer: {
+    position: 'relative',
+  },
+  logo: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+  },
+  logoPlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoEditBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  businessNameContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 12,
   },
   businessCardName: {

@@ -7,10 +7,12 @@ import {
   TouchableOpacity,
   useColorScheme,
   ScrollView,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { Link } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { useStore } from '@/lib/store';
+import { useStore, DATE_RANGE_OPTIONS } from '@/lib/store';
 import { formatCurrency, timeAgo, getStatusColor, getStatusLabel } from '@/lib/utils';
 import type { Quote } from '@/types';
 
@@ -175,8 +177,10 @@ function EmptyState({ filter }: { filter: JobFilter }) {
 export default function InvoicesScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const { quotes } = useStore();
+  const { quotes, dateRange, setDateRange } = useStore();
   const [filter, setFilter] = useState<JobFilter>('approved');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Get all jobs (approved, invoiced, paid)
   const allJobs = useMemo(() => {
@@ -188,11 +192,27 @@ export default function InvoicesScreen() {
       });
   }, [quotes]);
 
-  // Filter jobs based on selected filter
+  // Filter jobs based on selected filter and search
   const filteredJobs = useMemo(() => {
-    if (filter === 'all') return allJobs;
-    return allJobs.filter(q => q.status === filter);
-  }, [allJobs, filter]);
+    let filtered = allJobs;
+
+    // Apply status filter
+    if (filter !== 'all') {
+      filtered = filtered.filter(q => q.status === filter);
+    }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      const queryWords = query.split(/\s+/);
+      filtered = filtered.filter(q => {
+        const searchText = `${q.customer_name} ${q.job_description || ''}`.toLowerCase();
+        return queryWords.every(word => searchText.includes(word));
+      });
+    }
+
+    return filtered;
+  }, [allJobs, filter, searchQuery]);
 
   // Count by status
   const counts = useMemo(() => ({
@@ -260,6 +280,32 @@ export default function InvoicesScreen() {
         <FilterChip label="Paid" active={filter === 'paid'} onPress={() => setFilter('paid')} count={counts.paid} />
       </ScrollView>
 
+      {/* Search Bar */}
+      <View style={[styles.searchContainer, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+        <FontAwesome name="search" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+        <TextInput
+          style={[styles.searchInput, { color: isDark ? '#FFFFFF' : '#111827' }]}
+          placeholder="Search by name or job..."
+          placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <FontAwesome name="times-circle" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+          </TouchableOpacity>
+        )}
+        <View style={[styles.searchDivider, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]} />
+        <TouchableOpacity
+          style={styles.dateFilterButton}
+          onPress={() => setShowDatePicker(true)}>
+          <FontAwesome name="calendar" size={14} color="#3B82F6" />
+          <Text style={styles.dateFilterText}>
+            {DATE_RANGE_OPTIONS.find(o => o.value === dateRange)?.label.replace(' Days', 'd').replace(' Time', '')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.content}>
         {filteredJobs.length === 0 ? (
           <EmptyState filter={filter} />
@@ -273,6 +319,47 @@ export default function InvoicesScreen() {
           />
         )}
       </View>
+
+      {/* Date Range Picker Modal */}
+      <Modal
+        visible={showDatePicker}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDatePicker(false)}>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowDatePicker(false)}>
+          <View style={[styles.datePickerModal, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+            <Text style={[styles.datePickerTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+              Show jobs from
+            </Text>
+            {DATE_RANGE_OPTIONS.map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.datePickerOption,
+                  dateRange === option.value && styles.datePickerOptionActive,
+                ]}
+                onPress={() => {
+                  setDateRange(option.value);
+                  setShowDatePicker(false);
+                }}>
+                <Text style={[
+                  styles.datePickerOptionText,
+                  { color: isDark ? '#FFFFFF' : '#111827' },
+                  dateRange === option.value && styles.datePickerOptionTextActive,
+                ]}>
+                  {option.label}
+                </Text>
+                {dateRange === option.value && (
+                  <FontAwesome name="check" size={16} color="#3B82F6" />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -438,5 +525,79 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
     textAlign: 'center',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    height: 44,
+    borderRadius: 12,
+    gap: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    height: '100%',
+  },
+  searchDivider: {
+    width: 1,
+    height: 20,
+    marginHorizontal: 8,
+  },
+  dateFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  dateFilterText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#3B82F6',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  datePickerModal: {
+    width: '80%',
+    maxWidth: 300,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  datePickerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  datePickerOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  datePickerOptionActive: {
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  datePickerOptionText: {
+    fontSize: 16,
+  },
+  datePickerOptionTextActive: {
+    fontWeight: '600',
+    color: '#3B82F6',
   },
 });

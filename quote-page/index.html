@@ -4,289 +4,620 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Quote</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #F3F4F6;
-      color: #111827;
-      line-height: 1.5;
-      padding: 16px;
-      padding-bottom: 100px;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(180deg, #F8FAFC 0%, #EFF6FF 100%);
+      color: #1E293B;
+      line-height: 1.6;
+      min-height: 100vh;
+      padding: 24px 16px 120px;
     }
 
-    .container { max-width: 600px; margin: 0 auto; }
+    .container { max-width: 640px; margin: 0 auto; }
 
-    .header {
-      background: #FFFFFF;
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 16px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-
-    .business-header {
-      display: flex;
+    /* Document Badge */
+    .document-badge {
+      display: inline-flex;
       align-items: center;
-      gap: 16px;
-    }
-
-    .business-logo {
-      width: 60px;
-      height: 60px;
-      border-radius: 12px;
-      object-fit: cover;
-      flex-shrink: 0;
-    }
-
-    .business-info {
-      flex: 1;
-    }
-
-    .business-name {
-      font-size: 20px;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-
-    .business-contact {
-      color: #6B7280;
-      font-size: 14px;
-    }
-
-    .business-address {
-      color: #6B7280;
-      font-size: 14px;
-      margin-top: 2px;
-    }
-
-    .customer-info {
-      margin-top: 16px;
-      padding-top: 16px;
-      border-top: 1px solid #E5E7EB;
-    }
-
-    .customer-name { font-weight: 500; }
-
-    .job-description {
-      color: #6B7280;
-      font-size: 14px;
-      margin-top: 4px;
-    }
-
-    .date-info {
-      margin-top: 12px;
-      display: flex;
-      flex-direction: column;
       gap: 6px;
+      background: #3B82F6;
+      color: #FFFFFF;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      margin-bottom: 20px;
     }
 
-    .date-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 14px;
-      color: #6B7280;
+    .document-badge.invoice {
+      background: #8B5CF6;
     }
 
-    .date-row svg {
+    .document-badge svg {
       width: 14px;
       height: 14px;
       fill: currentColor;
     }
 
-    .section-header {
-      font-size: 13px;
+    /* Header Card */
+    .header {
+      background: #FFFFFF;
+      border-radius: 8px;
+      padding: 28px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .business-section {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .business-logo {
+      width: 125px;
+      height: 125px;
+      object-fit: cover;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      flex-shrink: 0;
+    }
+
+    .business-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .business-name {
+      font-size: 22px;
+      font-weight: 700;
+      color: #0F172A;
+      margin-bottom: 10px;
+      letter-spacing: -0.3px;
+    }
+
+    .business-details {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .business-detail-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #64748B;
+      font-size: 14px;
+    }
+
+    .business-detail-row svg {
+      width: 14px;
+      height: 14px;
+      fill: #94A3B8;
+      flex-shrink: 0;
+    }
+
+    .business-address-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      color: #64748B;
+      font-size: 14px;
+      margin-top: 20px;
+    }
+
+    .business-address-row svg {
+      width: 14px;
+      height: 14px;
+      fill: #94A3B8;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .business-address-row span {
+      flex: 1;
+      line-height: 1.4;
+    }
+
+    .divider {
+      height: 1px;
+      background: #E2E8F0;
+      margin: 20px 0;
+    }
+
+    /* Customer Section */
+    .customer-section {
+      background: #F8FAFC;
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .info-block-label {
+      font-size: 11px;
       font-weight: 600;
-      color: #6B7280;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      margin: 20px 0 10px 4px;
+      color: #94A3B8;
+      margin-bottom: 6px;
+    }
+
+    .info-block-value {
+      font-size: 15px;
+      font-weight: 500;
+      color: #1E293B;
+    }
+
+    .info-block-subvalue {
+      font-size: 13px;
+      color: #64748B;
+      margin-top: 4px;
+    }
+
+    /* Date Pills */
+    .date-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .date-pills:empty {
+      display: none;
+    }
+
+    .date-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #F1F5F9;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #475569;
+    }
+
+    .date-pill svg {
+      width: 14px;
+      height: 14px;
+      fill: #64748B;
+    }
+
+    .date-pill.due {
+      background: #FEF3C7;
+      color: #92400E;
+    }
+
+    .date-pill.due svg {
+      fill: #D97706;
+    }
+
+    /* Section Header */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748B;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin: 24px 0 12px 4px;
+    }
+
+    .section-header::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #E2E8F0;
+    }
+
+    /* Line Items */
+    .line-items-card {
+      background: #FFFFFF;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
     }
 
     .line-item {
-      background: #FFFFFF;
-      padding: 14px 16px;
-      border-radius: 10px;
-      margin-bottom: 6px;
+      padding: 16px 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      border-bottom: 1px solid #F1F5F9;
     }
 
-    .line-item-info { display: flex; flex-direction: column; flex: 1; padding-right: 12px; }
-    .line-item-name { font-weight: 500; }
-    .line-item-qty { font-size: 13px; color: #6B7280; margin-top: 2px; }
-    .line-item-total { font-weight: 600; white-space: nowrap; }
+    .line-item:last-child {
+      border-bottom: none;
+    }
 
+    .line-item-info {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      padding-right: 16px;
+    }
+
+    .line-item-name {
+      font-weight: 500;
+      color: #1E293B;
+      margin-bottom: 2px;
+    }
+
+    .line-item-qty {
+      font-size: 13px;
+      color: #94A3B8;
+    }
+
+    .line-item-total {
+      font-weight: 600;
+      font-size: 15px;
+      color: #1E293B;
+      white-space: nowrap;
+    }
+
+    /* Totals */
     .totals {
       background: #FFFFFF;
-      border-radius: 12px;
-      padding: 16px;
+      border-radius: 8px;
+      padding: 20px;
       margin-top: 16px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
     }
 
     .totals-row {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 8px;
+      padding: 8px 0;
+      font-size: 15px;
     }
 
-    .totals-label { color: #6B7280; }
+    .totals-label {
+      color: #64748B;
+    }
+
+    .totals-value {
+      font-weight: 500;
+      color: #1E293B;
+    }
 
     .total-row {
       margin-top: 12px;
-      padding-top: 12px;
-      border-top: 1px solid #E5E7EB;
-      margin-bottom: 0;
+      padding-top: 16px;
+      border-top: 2px solid #E2E8F0;
     }
 
-    .total-label { font-size: 18px; font-weight: 600; }
-    .total-value { font-size: 22px; font-weight: 700; color: #3B82F6; }
+    .total-label {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1E293B;
+    }
 
+    .total-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #3B82F6;
+    }
+
+    /* Notes */
     .notes {
-      background: #FFFFFF;
-      border-radius: 10px;
-      padding: 14px 16px;
-      margin-bottom: 16px;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      background: #FFFBEB;
+      border-radius: 8px;
+      padding: 16px 20px;
+      border-left: 4px solid #F59E0B;
     }
 
-    .notes-text { color: #4B5563; font-size: 14px; line-height: 1.6; }
+    .notes-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #D97706;
+      margin-bottom: 8px;
+    }
 
+    .notes-text {
+      color: #78350F;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    /* Payment Section */
     .payment-section {
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
       background: #FFFFFF;
-      padding: 16px;
-      padding-bottom: max(16px, env(safe-area-inset-bottom));
-      box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+      padding: 16px 20px;
+      padding-bottom: max(20px, env(safe-area-inset-bottom));
+      box-shadow: 0 -8px 30px rgba(0,0,0,0.12);
+      border-top: 1px solid #E2E8F0;
     }
 
     .action-button {
-      display: block;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
       width: 100%;
-      max-width: 600px;
+      max-width: 640px;
       margin: 0 auto;
-      padding: 16px;
-      background: #10B981;
+      padding: 16px 24px;
+      background: linear-gradient(135deg, #10B981 0%, #059669 100%);
       color: #FFFFFF;
       text-align: center;
       text-decoration: none;
-      font-size: 17px;
+      font-size: 16px;
       font-weight: 600;
-      border-radius: 12px;
+      border-radius: 8px;
       border: none;
       cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+    }
+
+    .action-button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+    }
+
+    .action-button:active {
+      transform: translateY(0);
     }
 
     .action-button.approve {
-      background: #8B5CF6;
+      background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+      box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4);
+    }
+
+    .action-button.approve:hover {
+      box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
     }
 
     .action-button:disabled {
       opacity: 0.7;
       cursor: not-allowed;
+      transform: none;
+    }
+
+    .action-button svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
     }
 
     .status-banner {
-      max-width: 600px;
+      max-width: 640px;
       margin: 0 auto;
-      text-align: center;
-      padding: 16px;
-      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 16px 24px;
+      border-radius: 8px;
       font-weight: 600;
+      font-size: 15px;
+    }
+
+    .status-banner svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
     }
 
     .status-banner.approved {
-      background: #F3E8FF;
-      color: #8B5CF6;
+      background: linear-gradient(135deg, #F3E8FF 0%, #EDE9FE 100%);
+      color: #7C3AED;
     }
 
     .status-banner.paid {
-      background: #ECFDF5;
-      color: #10B981;
+      background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);
+      color: #059669;
     }
 
     .zelle-info {
-      max-width: 600px;
+      max-width: 640px;
       margin: 0 auto;
       text-align: center;
       padding: 8px 16px;
     }
 
-    .zelle-info p { margin-bottom: 4px; }
-    .zelle-details { font-size: 18px; font-weight: 600; color: #3B82F6; }
+    .zelle-info p {
+      margin-bottom: 4px;
+      color: #64748B;
+    }
 
-    .loading, .error {
+    .zelle-info strong {
+      color: #1E293B;
+    }
+
+    .zelle-details {
+      font-size: 20px;
+      font-weight: 700;
+      color: #3B82F6;
+      margin-top: 8px;
+    }
+
+    /* Loading & Error */
+    .loading {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 60vh;
+      gap: 16px;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #E2E8F0;
+      border-top-color: #3B82F6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      color: #64748B;
+      font-size: 14px;
+    }
+
+    .error {
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 50vh;
+      min-height: 60vh;
       text-align: center;
     }
 
-    .error-content h1 { color: #111827; margin-bottom: 8px; }
-    .error-content p { color: #6B7280; }
+    .error-content {
+      background: #FFFFFF;
+      padding: 40px;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+
+    .error-icon {
+      width: 64px;
+      height: 64px;
+      background: #FEE2E2;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+    }
+
+    .error-icon svg {
+      width: 32px;
+      height: 32px;
+      fill: #DC2626;
+    }
+
+    .error-content h1 {
+      color: #1E293B;
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .error-content p {
+      color: #64748B;
+      font-size: 14px;
+    }
 
     .hidden { display: none !important; }
+
+    /* Powered by footer */
+    .powered-by {
+      text-align: center;
+      margin-top: 32px;
+      padding-bottom: 20px;
+      font-size: 12px;
+      color: #94A3B8;
+    }
+
+    .powered-by a {
+      color: #64748B;
+      text-decoration: none;
+      font-weight: 500;
+    }
   </style>
 </head>
 <body>
-  <div id="loading" class="loading">Loading...</div>
+  <div id="loading" class="loading">
+    <div class="spinner"></div>
+    <div class="loading-text">Loading document...</div>
+  </div>
 
   <div id="error" class="error hidden">
     <div class="error-content">
-      <h1>Quote Not Found</h1>
-      <p>This quote may have expired or been removed.</p>
+      <div class="error-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+      </div>
+      <h1>Document Not Found</h1>
+      <p>This quote or invoice may have expired or been removed.</p>
     </div>
   </div>
 
   <div id="content" class="container hidden">
+    <div id="documentBadge" class="document-badge">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+      <span id="documentType">Quote</span>
+    </div>
+
     <div class="header">
-      <div class="business-header">
+      <div class="business-section">
         <img id="businessLogo" class="business-logo" style="display: none;" alt="Business logo" />
         <div class="business-info">
           <div class="business-name" id="businessName"></div>
-          <div class="business-contact" id="businessContact"></div>
-          <div class="business-address" id="businessAddress"></div>
+          <div class="business-details">
+            <div class="business-detail-row" id="phoneRow" style="display: none;">
+              <svg viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+              <span id="businessPhone"></span>
+            </div>
+            <div class="business-detail-row" id="emailRow" style="display: none;">
+              <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+              <span id="businessEmail"></span>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="customer-info">
-        <div class="customer-name"><span id="documentType">Quote</span> for <span id="customerName"></span></div>
-        <div class="job-description" id="jobDescription"></div>
-        <div class="date-info" id="dateInfo"></div>
+
+      <div class="business-address-row" id="addressRow" style="display: none;">
+        <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+        <span id="businessAddress"></span>
       </div>
+
+      <div class="divider"></div>
+
+      <div class="customer-section">
+        <div class="info-block-label">Prepared For</div>
+        <div class="info-block-value" id="customerName"></div>
+        <div class="info-block-subvalue" id="jobDescription"></div>
+      </div>
+
+      <div class="date-pills" id="datePills"></div>
     </div>
 
-    <div class="section-header">Items</div>
-    <div id="lineItems"></div>
+    <div class="section-header">Line Items</div>
+    <div class="line-items-card" id="lineItems"></div>
 
     <div class="totals">
-      <div class="totals-row">
+      <div class="totals-row" id="subtotalRow">
         <span class="totals-label">Subtotal</span>
-        <span id="subtotal"></span>
+        <span class="totals-value" id="subtotal"></span>
       </div>
       <div class="totals-row" id="taxRow">
         <span class="totals-label" id="taxLabel"></span>
-        <span id="taxAmount"></span>
+        <span class="totals-value" id="taxAmount"></span>
       </div>
       <div class="totals-row total-row">
-        <span class="total-label">Total</span>
+        <span class="total-label">Total Due</span>
         <span class="total-value" id="total"></span>
       </div>
     </div>
 
-    <div id="notesSection" class="hidden">
-      <div class="section-header">Notes</div>
+    <div id="notesSection" class="hidden" style="margin-top: 20px;">
       <div class="notes">
+        <div class="notes-label">Notes</div>
         <div class="notes-text" id="notes"></div>
       </div>
+    </div>
+
+    <div class="powered-by">
+      Powered by <a href="https://blitzquotes.com">BlitzQuotes</a>
     </div>
 
     <div id="paymentSection" class="payment-section hidden"></div>
@@ -304,6 +635,12 @@
       if (!dateStr) return '';
       const date = new Date(dateStr + 'T00:00:00');
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function formatFullDate(dateStr) {
+      if (!dateStr) return '';
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
     }
 
     function escapeHtml(text) {
@@ -341,7 +678,7 @@
       const button = document.getElementById('approveButton');
       if (button) {
         button.disabled = true;
-        button.textContent = 'Approving...';
+        button.innerHTML = '<span>Approving...</span>';
       }
 
       try {
@@ -353,11 +690,16 @@
 
         if (response.ok) {
           const section = document.getElementById('paymentSection');
-          section.innerHTML = '<div class="status-banner approved">✓ Quote Approved</div>';
+          section.innerHTML = `
+            <div class="status-banner approved">
+              <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              <span>Quote Approved</span>
+            </div>
+          `;
         } else {
           if (button) {
             button.disabled = false;
-            button.textContent = 'Approve Quote';
+            button.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg><span>Approve Quote</span>';
           }
           alert('Failed to approve quote. Please try again.');
         }
@@ -365,7 +707,7 @@
         console.error('Error:', error);
         if (button) {
           button.disabled = false;
-          button.textContent = 'Approve Quote';
+          button.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg><span>Approve Quote</span>';
         }
         alert('Failed to approve quote. Please try again.');
       }
@@ -377,105 +719,140 @@
       const isInvoice = quote.type === 'invoice';
       const docType = isInvoice ? `Invoice ${quote.invoice_number || ''}` : 'Quote';
 
-      document.title = `${docType} from ${business.name}`;
-      document.getElementById('businessName').textContent = business.name;
-      document.getElementById('documentType').textContent = docType;
+      document.title = `${docType} - ${business.name}`;
 
-      // Show logo if available
+      // Document badge
+      const badge = document.getElementById('documentBadge');
+      document.getElementById('documentType').textContent = docType;
+      if (isInvoice) {
+        badge.classList.add('invoice');
+      }
+
+      // Business info
+      document.getElementById('businessName').textContent = business.name;
+
       if (business.logo_url) {
         const logo = document.getElementById('businessLogo');
         logo.src = business.logo_url;
         logo.style.display = 'block';
       }
 
-      const contact = [business.phone, business.email].filter(Boolean).join(' • ');
-      document.getElementById('businessContact').textContent = contact;
-
-      // Show address if available
-      if (business.address) {
-        document.getElementById('businessAddress').textContent = business.address;
+      if (business.phone) {
+        document.getElementById('businessPhone').textContent = business.phone;
+        document.getElementById('phoneRow').style.display = 'flex';
       }
 
-      document.getElementById('customerName').textContent = quote.customer_name;
-      document.getElementById('jobDescription').textContent = quote.job_description;
+      if (business.email) {
+        document.getElementById('businessEmail').textContent = business.email;
+        document.getElementById('emailRow').style.display = 'flex';
+      }
 
-      // Display date information
-      const dateInfo = document.getElementById('dateInfo');
-      let dateHtml = '';
+      if (business.address) {
+        document.getElementById('businessAddress').textContent = business.address;
+        document.getElementById('addressRow').style.display = 'flex';
+      }
+
+      // Customer info
+      document.getElementById('customerName').textContent = quote.customer_name;
+      document.getElementById('jobDescription').textContent = quote.job_description || '';
+
+      // Date pills
+      const datePills = document.getElementById('datePills');
+      let pillsHtml = '';
 
       if (!isInvoice && quote.valid_until) {
-        dateHtml += `
-          <div class="date-row">
-            <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2z"/></svg>
+        pillsHtml += `
+          <div class="date-pill">
+            <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10z"/></svg>
             Valid until ${formatDate(quote.valid_until)}
           </div>
         `;
       }
 
-      if (isInvoice) {
-        if (quote.work_date) {
-          dateHtml += `
-            <div class="date-row">
-              <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-              Work completed ${formatDate(quote.work_date)}
-            </div>
-          `;
-        }
-        if (quote.due_date) {
-          dateHtml += `
-            <div class="date-row">
-              <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
-              Due ${formatDate(quote.due_date)}
-            </div>
-          `;
-        }
+      if (isInvoice && quote.work_date) {
+        pillsHtml += `
+          <div class="date-pill">
+            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            Work completed ${formatDate(quote.work_date)}
+          </div>
+        `;
       }
 
-      dateInfo.innerHTML = dateHtml;
+      if (isInvoice && quote.due_date) {
+        pillsHtml += `
+          <div class="date-pill due">
+            <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+            Due ${formatDate(quote.due_date)}
+          </div>
+        `;
+      }
 
+      datePills.innerHTML = pillsHtml;
+
+      // Line items
       document.getElementById('lineItems').innerHTML = quote.line_items.map(item => `
         <div class="line-item">
           <div class="line-item-info">
             <span class="line-item-name">${escapeHtml(item.name)}</span>
-            <span class="line-item-qty">${item.qty} ${escapeHtml(item.unit)} × ${formatCurrency(item.unit_price)}</span>
+            <span class="line-item-qty">${item.qty} ${escapeHtml(item.unit)} @ ${formatCurrency(item.unit_price)}</span>
           </div>
           <span class="line-item-total">${formatCurrency(item.total)}</span>
         </div>
       `).join('');
 
-      document.getElementById('subtotal').textContent = formatCurrency(quote.subtotal);
-
+      // Totals - only show subtotal if there's tax
       if (quote.tax > 0) {
+        document.getElementById('subtotal').textContent = formatCurrency(quote.subtotal);
         document.getElementById('taxLabel').textContent = `Tax (${(quote.tax_rate * 100).toFixed(1)}%)`;
         document.getElementById('taxAmount').textContent = formatCurrency(quote.tax);
       } else {
+        document.getElementById('subtotalRow').classList.add('hidden');
         document.getElementById('taxRow').classList.add('hidden');
       }
 
       document.getElementById('total').textContent = formatCurrency(quote.total);
 
+      // Notes
       if (quote.notes) {
         document.getElementById('notes').textContent = quote.notes;
         document.getElementById('notesSection').classList.remove('hidden');
       }
 
+      // Payment section
       const section = document.getElementById('paymentSection');
 
-      // Show appropriate action based on status
       if (quote.status === 'approved') {
-        section.innerHTML = '<div class="status-banner approved">✓ Quote Approved</div>';
+        section.innerHTML = `
+          <div class="status-banner approved">
+            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            <span>Quote Approved</span>
+          </div>
+        `;
         section.classList.remove('hidden');
       } else if (quote.status === 'paid') {
-        section.innerHTML = '<div class="status-banner paid">✓ Paid</div>';
+        section.innerHTML = `
+          <div class="status-banner paid">
+            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            <span>Paid - Thank You!</span>
+          </div>
+        `;
         section.classList.remove('hidden');
       } else if (canApprove) {
-        // Quote can be approved by customer
-        section.innerHTML = '<button id="approveButton" class="action-button approve" onclick="approveQuote()">Approve Quote</button>';
+        section.innerHTML = `
+          <button id="approveButton" class="action-button approve" onclick="approveQuote()">
+            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            <span>Approve Quote</span>
+          </button>
+        `;
         section.classList.remove('hidden');
       } else if (payment) {
-        // Invoice with payment option
         if (payment.url) {
-          section.innerHTML = `<a href="${escapeHtml(payment.url)}" class="action-button" target="_blank">${escapeHtml(payment.label)}</a>`;
+          section.innerHTML = `
+            <a href="${escapeHtml(payment.url)}" class="action-button" target="_blank">
+              <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+              <span>${escapeHtml(payment.label)}</span>
+            </a>
+          `;
           section.classList.remove('hidden');
         } else if (payment.method === 'zelle') {
           section.innerHTML = `

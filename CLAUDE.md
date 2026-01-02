@@ -39,7 +39,7 @@ BlitzQuotes helps solo and small trade contractors (plumbers, HVAC, electricians
 | State | Zustand |
 | Backend/DB | Supabase (Auth + Postgres + Realtime) |
 | Pricing Data | BlitzPrices (crowdsourced database) |
-| AI | OpenRouter (gpt-5-mini) - for reasoning only |
+| AI | OpenRouter (claude-sonnet-4) - for reasoning only |
 | Payments | Bring Your Own (Venmo, PayPal, Zelle, etc.) — Stripe recommended |
 | Customer Quote View | Next.js on Vercel (or Supabase Edge Function) |
 
