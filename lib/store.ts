@@ -3,19 +3,28 @@ import { supabase } from './supabase';
 import type { User } from '@supabase/supabase-js';
 import type { PricebookItem, Quote, UserSettings } from '../types';
 
-export type DateRange = 'all' | '7d' | '30d' | '90d';
+export type DateRange = 'all' | '7d' | '30d' | '90d' | 'ytd';
 
 export const DATE_RANGE_OPTIONS: { value: DateRange; label: string }[] = [
   { value: 'all', label: 'All Time' },
   { value: '7d', label: '7 Days' },
   { value: '30d', label: '30 Days' },
   { value: '90d', label: '90 Days' },
+  { value: 'ytd', label: 'YTD' },
 ];
 
 function getDateRangeStart(range: DateRange): string | null {
   if (range === 'all') return null;
-  const days = parseInt(range);
+
   const date = new Date();
+
+  if (range === 'ytd') {
+    date.setMonth(0, 1); // January 1st
+    date.setHours(0, 0, 0, 0);
+    return date.toISOString();
+  }
+
+  const days = parseInt(range);
   date.setDate(date.getDate() - days);
   date.setHours(0, 0, 0, 0);
   return date.toISOString();

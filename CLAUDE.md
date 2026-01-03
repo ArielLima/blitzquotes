@@ -633,14 +633,23 @@ eas submit            # Submit to stores
 
 ### Recently Completed
 - [x] **PDF Export** - Download quotes/invoices as PDF from customer web view
-  - Uses html2pdf.js for client-side generation
-  - Clean print-friendly styling
-  - Auto-names file based on document type and customer
+  - Professional document styling with jsPDF
+  - Contractor logo in header (when available)
+  - Construction-appropriate color scheme (orange accent)
+  - Shows "PAID" badge for paid invoices, "Amount Due" otherwise
+  - Phone number formatting for US/Canada/UK/international
+- [x] **Phone Number Formatting** - Consistent formatting throughout app
+  - US/Canada: (555) 123-4567
+  - UK: 020 1234 5678
+  - International: +44 123 456 7890
+- [x] **Improved Jobs Tab** - Better stats and filtering
+  - Compact stat cards (Expected, Collected, Profit)
+  - Whole dollar amounts in stats (no cents)
+  - YTD filter for date range
 - [x] **2-Pass AI Quote Generation** - More accurate quote building
   - AI Call #1: Extract required items from job description
   - Parallel BlitzPrices searches with weighted matching
   - AI Call #2: Build final quote with found items, fill gaps
-  - Loading UI showing progress steps
 - [x] **Edit individual line items** - Tap to edit name, price, qty after quote generation
 - [x] **Invoices** - Full quote to invoice flow
   - Quote → Job (approved) → Invoice status flow
@@ -650,22 +659,26 @@ eas submit            # Submit to stores
   - Mark as paid functionality
   - Valid until date for quotes
 - [x] **Custom Invoice Branding** - Business logo and address on customer-facing pages
-  - Logo uploaded in Settings
-  - Business address shown on quote/invoice pages
 - [x] **Settings: Logo upload** - Image picker uploads to Supabase storage
 - [x] **Settings: Address field** - Business address input field
 - [x] **AI Model Upgrade** - Switched from gpt-5-mini to claude-sonnet-4 for better results
 
-### Next Up
-- [ ] **Fix scraper selectors** - Home Depot page structure changed, getting 0 items
+### High Priority (Release)
+- [ ] **Photo attachments on quotes** - Attach photos of work area, damage, materials
+- [ ] **Push notifications** - Alert when customer views/approves quote
+- [ ] **Email sending option** - Alternative to SMS for sending quotes
+- [ ] **Quick quote templates** - Save common jobs as one-tap templates
+
+### Medium Priority (Post-Release)
+- [ ] **Customer signature capture** - Digital signatures on invoices
+- [ ] **Basic reports/export** - Monthly revenue summary, CSV export for taxes
+- [ ] **Recurring invoices** - For maintenance contracts
+- [ ] **Partial payments tracking** - Track deposits and payment plans
 
 ### Future Ideas
-- [ ] Recurring invoices
-- [ ] Partial payments tracking
-- [ ] Customer signature capture
-- [ ] Photo attachments on quotes
 - [ ] Multi-user / team support
 - [ ] QuickBooks / accounting integration
+- [ ] Fix scraper selectors (delay until closer to release)
 
 ---
 

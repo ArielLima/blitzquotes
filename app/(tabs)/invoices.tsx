@@ -43,20 +43,17 @@ function FilterChip({ label, active, onPress, count }: { label: string; active: 
   );
 }
 
-function StatCard({ label, value, color, icon }: { label: string; value: string; color: string; icon: string }) {
+function StatCard({ label, value }: { label: string; value: string }) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
   return (
     <View style={[styles.statCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-      <View style={[styles.statIconContainer, { backgroundColor: color + '20' }]}>
-        <FontAwesome name={icon as any} size={18} color={color} />
-      </View>
-      <Text style={[styles.statValue, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-        {value}
-      </Text>
       <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
         {label}
+      </Text>
+      <Text style={[styles.statValue, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+        {value}
       </Text>
     </View>
   );
@@ -250,21 +247,15 @@ export default function InvoicesScreen() {
       <View style={styles.statsContainer}>
         <StatCard
           label="Expected"
-          value={formatCurrency(stats.expectedRevenue)}
-          color="#F59E0B"
-          icon="clock-o"
+          value={formatCurrency(stats.expectedRevenue, { whole: true })}
         />
         <StatCard
           label="Collected"
-          value={formatCurrency(stats.paidRevenue)}
-          color="#3B82F6"
-          icon="dollar"
+          value={formatCurrency(stats.paidRevenue, { whole: true })}
         />
         <StatCard
           label="Profit"
-          value={formatCurrency(stats.paidProfit)}
-          color="#10B981"
-          icon="line-chart"
+          value={formatCurrency(stats.paidProfit, { whole: true })}
         />
       </View>
 
@@ -377,8 +368,8 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    paddingTop: 16,
-    gap: 12,
+    paddingTop: 12,
+    gap: 8,
   },
   filterRow: {
     flexDirection: 'row',
@@ -413,25 +404,21 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    padding: 12,
-    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
     alignItems: 'center',
-  },
-  statIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 6,
   },
   statValue: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
   },
   statLabel: {
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: 10,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
   },
   sectionHeader: {
     fontSize: 13,

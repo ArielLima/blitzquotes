@@ -11,9 +11,10 @@ BlitzQuotes helps solo and small trade contractors (plumbers, HVAC, electricians
 ## Current Features
 
 ### Quote Creation
-- **AI Mode** - Describe the job in plain English, AI generates line items with quantities and pricing
+- **AI Mode** - Describe the job in plain English, AI generates line items with quantities and pricing (powered by Claude Sonnet 4)
 - **Manual Mode** - Build quotes by searching BlitzPrices or adding custom items
-- **Mode Memory** - App remembers your preferred mode (AI vs Manual)
+- **2-Pass AI Generation** - AI extracts items, searches BlitzPrices, then builds accurate quote
+- **Edit Line Items** - Tap any line item to edit name, price, or quantity
 - **Custom Items** - Add items not in BlitzPrices directly in the quote builder
 - **Labor Tracking** - Add labor hours with your configured rate
 - **Profit Calculator** - See your profit breakdown (not shown to customer)
@@ -23,42 +24,53 @@ BlitzQuotes helps solo and small trade contractors (plumbers, HVAC, electricians
 - **View Notifications** - See when customers view your quotes
 - **Edit & Delete** - Modify any quote, not just drafts
 - **Filter & Search** - Filter by status, search by customer or job
+- **Valid Until Dates** - Set expiration dates on quotes
 
 ### Jobs & Invoices
 - **Jobs Tab** - Track confirmed work (Approved → Invoiced → Paid)
 - **Customer Approval** - Customers approve quotes from the quote link
 - **Convert to Invoice** - One tap to convert approved quotes to invoices
 - **Auto Invoice Numbers** - Sequential invoice numbering (INV-001, INV-002...)
-- **Invoice SMS** - Automatically open SMS to notify customer when invoice is ready
-- **Revenue & Profit Stats** - See total revenue and profit from paid jobs
+- **Work & Due Dates** - Track when work was completed and payment due dates
+- **Revenue & Profit Stats** - See Expected, Collected, and Profit totals
+- **YTD Filter** - View jobs from current year, last 7/30/90 days, or all time
+- **Mark as Paid** - Track when you've been paid
 
 ### Sending & Payments
 - **Share via SMS** - Send quote/invoice link directly via text message
 - **Share Anywhere** - Email, WhatsApp, or copy link
 - **Customer View** - Professional web page at q.blitzquotes.com
+- **PDF Export** - Download professional PDF from customer view page
 - **Approve & Pay Flow** - Customers approve quotes, then pay invoices
 - **Payment Links** - Supports Venmo, PayPal, Cash App, Zelle, Stripe, Square
-- **Mark as Paid** - Track when you've been paid
 
 ### Settings
-- **Business Profile** - Name, phone, email, address
+- **Business Profile** - Name, phone, email, address, logo
+- **Logo Upload** - Add your business logo to quotes and invoices
 - **Pricing Settings** - Labor rate, material markup, contractor discount
 - **Tax Configuration** - Default tax rate
 - **Payment Setup** - Configure your preferred payment method
 
+### Professional Polish
+- **Phone Formatting** - Numbers formatted for US/Canada/UK/international
+- **Custom Branding** - Your logo and address on customer-facing pages
+- **PDF Documents** - Clean, professional PDFs with paid/due status
+
 ## Planned Features
 
-### Coming Soon
-- [ ] **Invoices** - Convert quotes to invoices after job completion
-- [ ] **Invoice Numbers** - Auto-generated invoice numbering
-- [ ] **Due Dates** - Payment terms and due date tracking
+### High Priority (Release)
+- [ ] **Photo attachments** - Attach photos of work area, damage, materials
+- [ ] **Push notifications** - Alert when customer views/approves quote
+- [ ] **Email sending** - Alternative to SMS for sending quotes
+- [ ] **Quick templates** - Save common jobs as one-tap templates
+
+### Medium Priority (Post-Release)
+- [ ] **Customer signatures** - Digital signatures on invoices
+- [ ] **Reports/Export** - Monthly revenue summary, CSV export
+- [ ] **Recurring invoices** - For maintenance contracts
+- [ ] **Partial payments** - Track deposits and payment plans
 
 ### Future Ideas
-- [ ] Recurring invoices
-- [ ] Partial payments tracking
-- [ ] PDF export for quotes/invoices
-- [ ] Customer signature capture
-- [ ] Photo attachments on quotes
 - [ ] Multi-user / team support
 - [ ] QuickBooks / accounting integration
 
@@ -114,7 +126,7 @@ You profit:                     $149
 | State | Zustand |
 | Backend/DB | Supabase (Auth + Postgres) |
 | Pricing Data | BlitzPrices (crowdsourced) |
-| AI | OpenRouter (GPT-4o-mini) |
+| AI | OpenRouter (Claude Sonnet 4) |
 | Payments | BYOP (Venmo, PayPal, Stripe, etc.) |
 | Customer Pages | Cloudflare Pages |
 
