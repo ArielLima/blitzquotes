@@ -20,6 +20,7 @@ import { useStore } from '@/lib/store';
 import { signOut, supabase } from '@/lib/supabase';
 import { PAYMENT_METHODS } from '@/lib/payments';
 import { getRegions } from '@/lib/blitzprices';
+import { formatPhone } from '@/lib/utils';
 
 // Edit Modal Component
 function EditModal({
@@ -486,7 +487,7 @@ export default function SettingsScreen() {
         <SettingsRow
           icon="phone"
           label="Phone"
-          value={settings?.business_phone || 'Not set'}
+          value={settings?.business_phone ? formatPhone(settings.business_phone) : 'Not set'}
           onPress={() => openEditModal('business_phone', 'Phone Number', settings?.business_phone || '', { keyboardType: 'phone-pad' })}
         />
         <SettingsRow

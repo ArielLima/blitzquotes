@@ -7,11 +7,31 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-export function formatPhone(phone: string): string {
-  const cleaned = phone.replace(/\D/g, '');
-  if (cleaned.length === 10) {
-    return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+export function formatPhone(phone: string | null | undefined): string {
+  if (!phone) return '';
+
+  const hasPlus = phone.trim().startsWith('+');
+  const digits = phone.replace(/\D/g, '');
+
+  if (digits.length === 10) {
+    // US/Canada: (555) 123-4567
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  } else if (digits.length === 11 && digits.startsWith('1')) {
+    // US/Canada with country code: +1 (555) 123-4567
+    return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  } else if (digits.length === 11 && digits.startsWith('0')) {
+    // UK: 020 1234 5678
+    return `${digits.slice(0, 3)} ${digits.slice(3, 7)} ${digits.slice(7)}`;
+  } else if (hasPlus && digits.length > 6) {
+    // International with +: group as +XX XXX XXX XXXX
+    const cc = digits.slice(0, 2);
+    const rest = digits.slice(2);
+    return `+${cc} ${rest.replace(/(\d{3})(?=\d)/g, '$1 ').trim()}`;
+  } else if (digits.length > 6) {
+    // Generic: group in threes/fours
+    return digits.replace(/(\d{3})(?=\d{4,})/g, '$1 ').replace(/(\d{4})$/, ' $1').trim();
   }
+
   return phone;
 }
 

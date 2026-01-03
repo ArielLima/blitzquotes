@@ -351,7 +351,7 @@ export default function QuoteDetailScreen() {
                 </Text>
                 {quote.customer_phone && (
                   <Text style={[styles.customerPhone, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                    {quote.customer_phone}
+                    {formatPhone(quote.customer_phone)}
                   </Text>
                 )}
               </View>
