@@ -631,16 +631,17 @@ eas submit            # Submit to stores
 
 ## Roadmap
 
-### In Progress
-- [ ] **2-Pass AI Quote Generation** - More accurate quote building
+### Recently Completed
+- [x] **PDF Export** - Download quotes/invoices as PDF from customer web view
+  - Uses html2pdf.js for client-side generation
+  - Clean print-friendly styling
+  - Auto-names file based on document type and customer
+- [x] **2-Pass AI Quote Generation** - More accurate quote building
   - AI Call #1: Extract required items from job description
   - Parallel BlitzPrices searches with weighted matching
   - AI Call #2: Build final quote with found items, fill gaps
   - Loading UI showing progress steps
-  - ~10-12 seconds, much more accurate than single-pass
-- [ ] **Edit individual line items** - Allow editing items after quote generation (after 2-pass is done)
-
-### Recently Completed
+- [x] **Edit individual line items** - Tap to edit name, price, qty after quote generation
 - [x] **Invoices** - Full quote to invoice flow
   - Quote → Job (approved) → Invoice status flow
   - Auto-generate invoice numbers (INV-001, INV-002, etc.)
@@ -661,7 +662,6 @@ eas submit            # Submit to stores
 ### Future Ideas
 - [ ] Recurring invoices
 - [ ] Partial payments tracking
-- [ ] PDF export for quotes/invoices
 - [ ] Customer signature capture
 - [ ] Photo attachments on quotes
 - [ ] Multi-user / team support
