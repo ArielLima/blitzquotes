@@ -13,15 +13,18 @@ import {
   ActivityIndicator,
   Modal,
   FlatList,
+  Image,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import * as ImagePicker from 'expo-image-picker';
 import { useStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/utils';
 import { searchBlitzPrices, type BlitzPricesResult } from '@/lib/blitzprices';
+import type { QuoteAttachment } from '@/types';
 
 const QUOTE_MODE_KEY = 'blitzquotes_quote_mode';
 
@@ -80,6 +83,9 @@ export default function NewQuoteScreen() {
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState<'analyzing' | 'searching' | 'building' | null>(null);
   const [notes, setNotes] = useState('');
+  const [attachments, setAttachments] = useState<QuoteAttachment[]>([]);
+  const [pendingPhotos, setPendingPhotos] = useState<{ uri: string; name: string }[]>([]);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
 
   // Default valid_until to 30 days from now
   const getDefaultValidUntil = () => {
@@ -109,6 +115,8 @@ export default function NewQuoteScreen() {
       setCustomerEmail(isDuplicating ? '' : sourceQuote.customer_email || '');
       setLineItems(sourceQuote.line_items || []);
       setNotes(isDuplicating ? '' : sourceQuote.notes || '');
+      // Load attachments (keep when duplicating so photos carry over)
+      setAttachments(sourceQuote.attachments || []);
       // Load valid_until or default to 30 days
       if (sourceQuote.valid_until && !isDuplicating) {
         setValidUntilDate(new Date(sourceQuote.valid_until + 'T00:00:00'));
@@ -375,6 +383,28 @@ export default function NewQuoteScreen() {
     setLaborTotal(hours * (settings?.labor_rate || 100));
   };
 
+  const openLaborEditor = () => {
+    Alert.prompt(
+      'Edit Labor Hours',
+      `Enter hours (current rate: ${formatCurrency(settings?.labor_rate || 100)}/hr)`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Update',
+          onPress: (value) => {
+            const hours = parseFloat(value || '0');
+            if (!isNaN(hours) && hours >= 0) {
+              handleUpdateLaborHours(hours);
+            }
+          },
+        },
+      ],
+      'plain-text',
+      laborHours.toString(),
+      'decimal-pad'
+    );
+  };
+
   const handleRemoveItem = (index: number) => {
     const itemName = lineItems[index]?.name || 'this item';
     Alert.alert(
@@ -389,6 +419,109 @@ export default function NewQuoteScreen() {
         },
       ]
     );
+  };
+
+  // Photo attachment functions
+  const handleAddPhoto = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: true,
+        quality: 0.8,
+        selectionLimit: 10,
+      });
+
+      if (result.canceled || !result.assets?.length) return;
+
+      const newPhotos = result.assets.map((asset, index) => ({
+        uri: asset.uri,
+        name: asset.fileName || `photo_${Date.now()}_${index}.jpg`,
+      }));
+
+      setPendingPhotos(prev => [...prev, ...newPhotos]);
+    } catch (error) {
+      console.error('Error picking images:', error);
+      Alert.alert('Error', 'Failed to select photos');
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please allow camera access to take photos');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        quality: 0.8,
+      });
+
+      if (result.canceled || !result.assets?.[0]) return;
+
+      const asset = result.assets[0];
+      setPendingPhotos(prev => [...prev, {
+        uri: asset.uri,
+        name: asset.fileName || `photo_${Date.now()}.jpg`,
+      }]);
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      Alert.alert('Error', 'Failed to take photo');
+    }
+  };
+
+  const handleRemovePendingPhoto = (index: number) => {
+    setPendingPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveAttachment = (id: string) => {
+    setAttachments(prev => prev.filter(a => a.id !== id));
+  };
+
+  const uploadPendingPhotos = async (quoteId: string): Promise<QuoteAttachment[]> => {
+    const uploaded: QuoteAttachment[] = [];
+
+    for (const photo of pendingPhotos) {
+      try {
+        const fileExt = photo.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const fileName = `${user?.id}/${quoteId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
+
+        // Fetch and convert to ArrayBuffer
+        const response = await fetch(photo.uri);
+        const blob = await response.blob();
+        const arrayBuffer = await new Response(blob).arrayBuffer();
+
+        // Upload to Supabase Storage
+        const { error: uploadError } = await supabase.storage
+          .from('quote-attachments')
+          .upload(fileName, arrayBuffer, {
+            contentType: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
+          });
+
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          continue;
+        }
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('quote-attachments')
+          .getPublicUrl(fileName);
+
+        uploaded.push({
+          id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          url: publicUrl,
+          name: photo.name,
+          size: blob.size,
+          type: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
+          uploaded_at: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.error('Error uploading photo:', error);
+      }
+    }
+
+    return uploaded;
   };
 
   const handleSaveQuote = async () => {
@@ -409,18 +542,37 @@ export default function NewQuoteScreen() {
 
     setLoading(true);
     try {
+      // For new quotes, we need to create first, then upload photos
+      // For edits, we can upload photos using existing ID
+      const quoteId = isEditing ? editId : undefined;
+
+      // Upload pending photos if any
+      let allAttachments = [...attachments];
+      if (pendingPhotos.length > 0) {
+        setUploadingPhotos(true);
+        // For new quotes, we'll use a temp ID and update after creation
+        const tempId = quoteId || `temp_${Date.now()}`;
+        const uploaded = await uploadPendingPhotos(tempId);
+        allAttachments = [...allAttachments, ...uploaded];
+        setUploadingPhotos(false);
+      }
+
       const quoteData = {
         customer_name: customerName.trim(),
         customer_phone: customerPhone.trim(),
         customer_email: customerEmail.trim() || null,
         job_description: jobDescription,
         line_items: lineItems,
+        labor_hours: laborHours,
+        labor_rate: settings?.labor_rate || 100,
+        labor_total: laborTotal,
         subtotal,
         tax_rate: taxRate,
         tax,
         total,
         notes: notes.trim() || null,
         valid_until: toDateString(validUntilDate),
+        attachments: allAttachments,
       };
 
       if (isEditing && editId) {
@@ -876,9 +1028,11 @@ export default function NewQuoteScreen() {
                     onPress={() => handleUpdateLaborHours(laborHours - 0.5)}>
                     <FontAwesome name="minus" size={12} color={isDark ? '#9CA3AF' : '#6B7280'} />
                   </TouchableOpacity>
-                  <Text style={[styles.qtyText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                    {laborHours} hrs
-                  </Text>
+                  <TouchableOpacity onPress={openLaborEditor}>
+                    <Text style={[styles.qtyText, { color: '#3B82F6', textDecorationLine: 'underline' }]}>
+                      {laborHours} hrs
+                    </Text>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.qtyButton, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
                     onPress={() => handleUpdateLaborHours(laborHours + 0.5)}>
@@ -926,6 +1080,67 @@ export default function NewQuoteScreen() {
               numberOfLines={3}
               textAlignVertical="top"
             />
+          </View>
+
+          {/* Photo Attachments */}
+          <View style={[styles.sectionCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                Photos
+              </Text>
+              <Text style={[styles.sectionSubtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                {attachments.length + pendingPhotos.length} attached
+              </Text>
+            </View>
+
+            {/* Existing and pending photos grid */}
+            {(attachments.length > 0 || pendingPhotos.length > 0) && (
+              <View style={styles.photosGrid}>
+                {attachments.map((attachment) => (
+                  <View key={attachment.id} style={styles.photoContainer}>
+                    <Image source={{ uri: attachment.url }} style={styles.photoThumbnail} />
+                    <TouchableOpacity
+                      style={styles.photoRemoveButton}
+                      onPress={() => handleRemoveAttachment(attachment.id)}>
+                      <FontAwesome name="times-circle" size={20} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                {pendingPhotos.map((photo, index) => (
+                  <View key={`pending-${index}`} style={styles.photoContainer}>
+                    <Image source={{ uri: photo.uri }} style={styles.photoThumbnail} />
+                    <View style={styles.pendingBadge}>
+                      <Text style={styles.pendingBadgeText}>New</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.photoRemoveButton}
+                      onPress={() => handleRemovePendingPhoto(index)}>
+                      <FontAwesome name="times-circle" size={20} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Add photo buttons */}
+            <View style={styles.photoButtons}>
+              <TouchableOpacity
+                style={[styles.photoButton, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                onPress={handleTakePhoto}>
+                <FontAwesome name="camera" size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                <Text style={[styles.photoButtonText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  Take Photo
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.photoButton, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                onPress={handleAddPhoto}>
+                <FontAwesome name="image" size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                <Text style={[styles.photoButtonText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  From Gallery
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={[styles.totalsCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
@@ -1732,5 +1947,74 @@ const styles = StyleSheet.create({
   profitTotalValue: {
     fontSize: 17,
     fontWeight: '700',
+  },
+  sectionCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+  },
+  photosGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  photoContainer: {
+    position: 'relative',
+    width: 80,
+    height: 80,
+  },
+  photoThumbnail: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: '#E5E7EB',
+  },
+  photoRemoveButton: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+  },
+  pendingBadge: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  pendingBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  photoButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  photoButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 8,
+  },
+  photoButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

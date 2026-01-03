@@ -486,6 +486,76 @@
       margin-top: 8px;
     }
 
+    /* Photos Grid */
+    .photos-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .photo-item {
+      width: 100px;
+      height: 100px;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .photo-item:hover {
+      transform: scale(1.05);
+    }
+
+    .photo-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Photo Lightbox */
+    .lightbox {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .lightbox-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .lightbox-close:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .lightbox img {
+      max-width: 100%;
+      max-height: 90vh;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+
     /* Loading & Error */
     .loading {
       display: flex;
@@ -560,32 +630,159 @@
 
     .hidden { display: none !important; }
 
-    /* Print styles (for browser print) */
+    /* Print styles (for browser print) - matches PDF styling */
     @media print {
-      body {
-        background: #FFFFFF !important;
-        padding: 0 !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
 
+      body {
+        background: #FFFFFF !important;
+        padding: 20px !important;
+        font-size: 11pt;
+        line-height: 1.4;
+      }
+
+      .top-bar,
       .download-button,
       .payment-section,
-      .powered-by {
+      .powered-by,
+      .lightbox,
+      #photosSection,
+      .date-pill svg,
+      .document-badge {
         display: none !important;
       }
 
       .container {
-        max-width: none;
-        padding: 20px;
+        max-width: 100%;
+        padding: 0;
       }
 
-      .header,
-      .line-items-card,
-      .totals,
-      .notes {
+      /* Simpler header for print */
+      .header {
         box-shadow: none !important;
-        border: 1px solid #E2E8F0;
+        border: none !important;
+        padding: 0 0 16px 0;
+        margin-bottom: 16px;
+        border-bottom: 1px solid #E2E8F0 !important;
+      }
+
+      .business-section {
+        margin-bottom: 16px;
+      }
+
+      .business-logo {
+        width: 60px !important;
+        height: 60px !important;
+      }
+
+      .business-name {
+        font-size: 18pt;
+      }
+
+      .customer-section {
+        background: none !important;
+        padding: 0;
+      }
+
+      .date-pills {
+        margin-top: 8px;
+      }
+
+      .date-pill {
+        background: none !important;
+        padding: 0;
+        font-size: 10pt;
+        color: #666 !important;
+      }
+
+      .date-pill.due {
+        background: none !important;
+        color: #B91C1C !important;
+      }
+
+      /* Clean section headers */
+      .section-header {
+        font-size: 9pt;
+        margin: 16px 0 8px 0;
+        border-bottom: 1px solid #E2E8F0;
+        padding-bottom: 4px;
+      }
+
+      .section-header::after {
+        display: none;
+      }
+
+      /* Table-like line items */
+      .line-items-card {
+        box-shadow: none !important;
+        border: none !important;
+        border-radius: 0;
+      }
+
+      .line-item {
+        padding: 8px 0;
+        border-bottom: 1px solid #F1F5F9;
+      }
+
+      .line-item-name {
+        font-size: 10pt;
+      }
+
+      .line-item-qty {
+        font-size: 9pt;
+      }
+
+      .line-item-total {
+        font-size: 10pt;
+      }
+
+      /* Totals section */
+      .totals {
+        box-shadow: none !important;
+        border: none !important;
+        margin-top: 16px;
+        padding: 16px 0 0 0;
+        border-top: 1px solid #E2E8F0 !important;
+      }
+
+      .totals-row {
+        font-size: 10pt;
+        padding: 4px 0;
+      }
+
+      .total-row {
+        border-top: 2px solid #1E293B !important;
+        padding-top: 8px;
+        margin-top: 8px;
+      }
+
+      .total-value {
+        font-size: 14pt;
+        color: #1E293B !important;
+      }
+
+      /* Notes */
+      .notes {
+        background: #F9FAFB !important;
+        border-left: 3px solid #F59E0B !important;
+        padding: 12px;
+        margin-top: 16px;
+      }
+
+      .notes-label {
+        font-size: 8pt;
+      }
+
+      .notes-text {
+        font-size: 10pt;
+      }
+
+      /* Page breaks */
+      .header, .totals {
+        page-break-inside: avoid;
       }
     }
 
@@ -674,6 +871,13 @@
     <div class="section-header">Line Items</div>
     <div class="line-items-card" id="lineItems"></div>
 
+    <div id="laborSection" class="hidden">
+      <div class="section-header">Labor</div>
+      <div class="line-items-card">
+        <div class="line-item" id="laborItem"></div>
+      </div>
+    </div>
+
     <div class="totals">
       <div class="totals-row" id="subtotalRow">
         <span class="totals-label">Subtotal</span>
@@ -694,6 +898,16 @@
         <div class="notes-label">Notes</div>
         <div class="notes-text" id="notes"></div>
       </div>
+    </div>
+
+    <div id="photosSection" class="hidden">
+      <div class="section-header">Photos</div>
+      <div class="photos-grid" id="photosGrid"></div>
+    </div>
+
+    <div id="lightbox" class="lightbox hidden" onclick="closeLightbox()">
+      <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+      <img id="lightboxImage" src="" alt="Photo" onclick="event.stopPropagation()" />
     </div>
 
     <div class="powered-by">
@@ -881,6 +1095,18 @@
         </div>
       `).join('');
 
+      // Labor
+      if (quote.labor_hours > 0) {
+        document.getElementById('laborItem').innerHTML = `
+          <div class="line-item-info">
+            <span class="line-item-name">Labor</span>
+            <span class="line-item-qty">${quote.labor_hours} hrs @ ${formatCurrency(quote.labor_rate)}/hr</span>
+          </div>
+          <span class="line-item-total">${formatCurrency(quote.labor_total)}</span>
+        `;
+        document.getElementById('laborSection').classList.remove('hidden');
+      }
+
       // Totals - only show subtotal if there's tax
       if (quote.tax > 0) {
         document.getElementById('subtotal').textContent = formatCurrency(quote.subtotal);
@@ -897,6 +1123,17 @@
       if (quote.notes) {
         document.getElementById('notes').textContent = quote.notes;
         document.getElementById('notesSection').classList.remove('hidden');
+      }
+
+      // Photos
+      if (quote.attachments && quote.attachments.length > 0) {
+        const photosGrid = document.getElementById('photosGrid');
+        photosGrid.innerHTML = quote.attachments.map(attachment => `
+          <div class="photo-item" onclick="openLightbox('${escapeHtml(attachment.url)}')">
+            <img src="${escapeHtml(attachment.url)}" alt="Photo attachment" loading="lazy" />
+          </div>
+        `).join('');
+        document.getElementById('photosSection').classList.remove('hidden');
       }
 
       // Payment section
@@ -953,6 +1190,23 @@
 
     // Store quote data for PDF
     let quoteData = null;
+
+    // Lightbox functions
+    function openLightbox(imageUrl) {
+      document.getElementById('lightboxImage').src = imageUrl;
+      document.getElementById('lightbox').classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+      document.getElementById('lightbox').classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    // Close lightbox on escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeLightbox();
+    });
 
     async function downloadPDF() {
       const button = document.getElementById('downloadPdfBtn');
@@ -1210,6 +1464,21 @@
 
           y += 6;
         });
+
+        // Add labor row if present
+        if (quote.labor_hours > 0) {
+          doc.setTextColor(...darkGray);
+          doc.text('Labor', colX[0], y);
+
+          doc.setTextColor(...gray);
+          doc.text(`${quote.labor_hours} hrs`, colX[1], y);
+          doc.text(`${formatCurrency(quote.labor_rate)}/hr`, colX[2], y);
+
+          doc.setTextColor(...darkGray);
+          doc.text(formatCurrency(quote.labor_total), colX[3], y);
+
+          y += 6;
+        }
 
         y += 6;
 

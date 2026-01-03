@@ -26,6 +26,15 @@ export interface LineItem {
 export type QuoteType = 'quote' | 'invoice';
 export type QuoteStatus = 'draft' | 'sent' | 'viewed' | 'approved' | 'invoiced' | 'paid';
 
+export interface QuoteAttachment {
+  id: string;
+  url: string;
+  name: string;
+  size: number;
+  type: string;  // MIME type
+  uploaded_at: string;
+}
+
 export interface Quote {
   id: string;
   user_id: string;
@@ -36,11 +45,15 @@ export interface Quote {
   customer_email?: string;
   job_description: string;
   line_items: LineItem[];
+  labor_hours: number;
+  labor_rate: number;
+  labor_total: number;
   subtotal: number;
   tax_rate: number;
   tax: number;
   total: number;
   notes?: string;
+  attachments: QuoteAttachment[];
   status: QuoteStatus;
   // Date fields
   valid_until?: string;    // Quote expiration date

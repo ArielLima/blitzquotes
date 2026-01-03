@@ -154,6 +154,9 @@ serve(async (req) => {
       customer_name: quote.customer_name,
       job_description: quote.job_description,
       line_items: quote.line_items,
+      labor_hours: quote.labor_hours || 0,
+      labor_rate: quote.labor_rate || 0,
+      labor_total: quote.labor_total || 0,
       subtotal: quote.subtotal,
       tax: quote.tax,
       tax_rate: quote.tax_rate,
@@ -163,6 +166,7 @@ serve(async (req) => {
       valid_until: quote.valid_until,
       work_date: quote.work_date,
       due_date: quote.due_date,
+      attachments: quote.attachments || [],
     },
     business: {
       name: settings?.business_name || 'Quote',

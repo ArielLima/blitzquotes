@@ -13,6 +13,7 @@ import {
   Linking,
   Clipboard,
   Platform,
+  Image,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Stack, router, useLocalSearchParams, useNavigation } from 'expo-router';
@@ -428,6 +429,28 @@ export default function QuoteDetailScreen() {
             </View>
           ))}
 
+          {/* Labor */}
+          {quote.labor_hours > 0 && (
+            <>
+              <Text style={[styles.sectionHeader, { color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 16 }]}>
+                LABOR
+              </Text>
+              <View style={[styles.lineItem, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+                <View style={styles.lineItemTop}>
+                  <Text style={[styles.lineItemName, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                    Labor
+                  </Text>
+                  <Text style={[styles.lineItemTotal, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                    {formatCurrency(quote.labor_total)}
+                  </Text>
+                </View>
+                <Text style={[styles.lineItemMeta, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  {quote.labor_hours} hrs × {formatCurrency(quote.labor_rate)}/hr
+                </Text>
+              </View>
+            </>
+          )}
+
           {/* Totals */}
           <View style={[styles.totalsCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
             <View style={styles.totalsRow}>
@@ -464,6 +487,25 @@ export default function QuoteDetailScreen() {
                 <Text style={[styles.notesText, { color: isDark ? '#D1D5DB' : '#4B5563' }]}>
                   {quote.notes}
                 </Text>
+              </View>
+            </>
+          )}
+
+          {/* Photos */}
+          {quote.attachments && quote.attachments.length > 0 && (
+            <>
+              <Text style={[styles.sectionHeader, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                PHOTOS ({quote.attachments.length})
+              </Text>
+              <View style={styles.photosGrid}>
+                {quote.attachments.map((attachment) => (
+                  <TouchableOpacity
+                    key={attachment.id}
+                    style={styles.photoContainer}
+                    onPress={() => Linking.openURL(attachment.url)}>
+                    <Image source={{ uri: attachment.url }} style={styles.photoThumbnail} />
+                  </TouchableOpacity>
+                ))}
               </View>
             </>
           )}
@@ -1375,5 +1417,22 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  photosGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  photoContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  photoThumbnail: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#E5E7EB',
   },
 });
