@@ -54,7 +54,7 @@ function QuoteCard({ quote }: { quote: Quote }) {
 
           <View style={styles.cardFooter}>
             <Text style={[styles.total, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-              {formatCurrency(quote.total)}
+              {formatCurrency(quote.total, { whole: true })}
             </Text>
             <View style={styles.footerRight}>
               {showViewedIndicator && (

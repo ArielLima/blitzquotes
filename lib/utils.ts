@@ -1,9 +1,11 @@
 import type { LineItem } from '../types';
 
-export function formatCurrency(amount: number): string {
+export function formatCurrency(amount: number, options?: { whole?: boolean }): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
+    minimumFractionDigits: options?.whole ? 0 : 2,
+    maximumFractionDigits: options?.whole ? 0 : 2,
   }).format(amount);
 }
 
