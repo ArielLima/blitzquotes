@@ -43,6 +43,7 @@ export interface Quote {
   customer_name: string;
   customer_phone: string;
   customer_email?: string;
+  job_address?: string;
   job_description: string;
   line_items: LineItem[];
   labor_hours: number;

@@ -703,6 +703,10 @@
         <div class="info-block-label">Prepared For</div>
         <div class="info-block-value" id="customerName"></div>
         <div class="info-block-subvalue" id="jobDescription"></div>
+        <div class="info-block-subvalue job-address" id="jobAddress" style="display: none;">
+          <svg viewBox="0 0 24 24" style="width: 12px; height: 12px; fill: #94A3B8; vertical-align: middle; margin-right: 4px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+          <span id="jobAddressText"></span>
+        </div>
       </div>
 
       <div class="date-pills" id="datePills"></div>
@@ -890,6 +894,11 @@
       // Customer info
       document.getElementById('customerName').textContent = quote.customer_name;
       document.getElementById('jobDescription').textContent = quote.job_description || '';
+
+      if (quote.job_address) {
+        document.getElementById('jobAddressText').textContent = quote.job_address;
+        document.getElementById('jobAddress').style.display = 'block';
+      }
 
       // Date pills
       const datePills = document.getElementById('datePills');
@@ -1221,6 +1230,15 @@
         const customerContact = [formatPhonePDF(quote.customer_phone), quote.customer_email].filter(Boolean).join('  •  ');
         if (customerContact) {
           doc.text(customerContact, margin, y);
+          y += 4;
+        }
+
+        // Job address
+        if (quote.job_address) {
+          doc.setFontSize(8);
+          doc.setTextColor(...gray);
+          doc.text(quote.job_address, margin, y);
+          y += 4;
         }
 
         // Due date or valid until

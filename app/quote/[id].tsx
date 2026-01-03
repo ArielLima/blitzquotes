@@ -366,6 +366,16 @@ export default function QuoteDetailScreen() {
               {quote.job_description}
             </Text>
 
+            {/* Job address */}
+            {quote.job_address && (
+              <View style={styles.dateInfoRow}>
+                <FontAwesome name="map-marker" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+                <Text style={[styles.dateInfoText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  {quote.job_address}
+                </Text>
+              </View>
+            )}
+
             {/* Date information */}
             {!isInvoice && quote.valid_until && (
               <View style={styles.dateInfoRow}>

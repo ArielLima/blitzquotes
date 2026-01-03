@@ -152,6 +152,7 @@ serve(async (req) => {
       type: quote.type || 'quote',
       invoice_number: quote.invoice_number,
       customer_name: quote.customer_name,
+      job_address: quote.job_address || '',
       job_description: quote.job_description,
       line_items: quote.line_items,
       labor_hours: quote.labor_hours || 0,

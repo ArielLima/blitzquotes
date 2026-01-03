@@ -77,6 +77,7 @@ export default function NewQuoteScreen() {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
+  const [jobAddress, setJobAddress] = useState('');
   const [lineItems, setLineItems] = useState<QuoteLineItem[]>([]);
   const [laborHours, setLaborHours] = useState(0);
   const [laborTotal, setLaborTotal] = useState(0);
@@ -113,6 +114,7 @@ export default function NewQuoteScreen() {
       setCustomerName(isDuplicating ? '' : sourceQuote.customer_name || '');
       setCustomerPhone(isDuplicating ? '' : sourceQuote.customer_phone || '');
       setCustomerEmail(isDuplicating ? '' : sourceQuote.customer_email || '');
+      setJobAddress(sourceQuote.job_address || '');
       setLineItems(sourceQuote.line_items || []);
       setNotes(isDuplicating ? '' : sourceQuote.notes || '');
       // Load attachments (keep when duplicating so photos carry over)
@@ -561,6 +563,7 @@ export default function NewQuoteScreen() {
         customer_name: customerName.trim(),
         customer_phone: customerPhone.trim(),
         customer_email: customerEmail.trim() || null,
+        job_address: jobAddress.trim() || null,
         job_description: jobDescription,
         line_items: lineItems,
         labor_hours: laborHours,
@@ -777,6 +780,20 @@ export default function NewQuoteScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                    color: isDark ? '#FFFFFF' : '#111827',
+                    borderColor: isDark ? '#374151' : '#E5E7EB',
+                  },
+                ]}
+                placeholder="Job site address"
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                value={jobAddress}
+                onChangeText={setJobAddress}
+              />
             </View>
 
             <View style={styles.section}>
@@ -922,6 +939,13 @@ export default function NewQuoteScreen() {
               onChangeText={setCustomerEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+            />
+            <TextInput
+              style={[styles.customerPhoneInput, { color: isDark ? '#FFFFFF' : '#111827', borderTopColor: isDark ? '#374151' : '#E5E7EB' }]}
+              placeholder="Job site address"
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              value={jobAddress}
+              onChangeText={setJobAddress}
             />
             <TextInput
               style={[styles.jobDescriptionInput, { color: isDark ? '#FFFFFF' : '#111827', borderTopColor: isDark ? '#374151' : '#E5E7EB' }]}
