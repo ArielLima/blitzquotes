@@ -49,10 +49,8 @@ interface BlitzPricesItem {
 
 interface UserSettings {
   labor_rate: number;
-  helper_rate?: number;
   contractor_discount: number;  // e.g., 0.15 for 15% off retail
   material_markup: number;
-  equipment_markup?: number;
   fee_markup?: number;
   default_tax_rate: number;
   state?: string;
@@ -84,9 +82,7 @@ function calculateContractorCost(retailPrice: number, settings: UserSettings): n
 function calculateCustomerPrice(contractorCost: number, category: string, settings: UserSettings): number {
   let markup = settings.material_markup;
 
-  if (category === 'equipment' && settings.equipment_markup !== undefined) {
-    markup = settings.equipment_markup;
-  } else if (category === 'fees' && settings.fee_markup !== undefined) {
+  if (category === 'fees' && settings.fee_markup !== undefined) {
     markup = settings.fee_markup;
   }
 
@@ -225,173 +221,197 @@ async function generateQuote(
   const region = settings.state || 'US';
 
   // ============================================
-  // STEP 1: AI Call #1 - Extract required items
+  // STEP 1: First AI call - Extract materials needed
   // ============================================
-  console.log('Step 1: Extracting required items...');
+  console.log('Step 1: Extracting materials...');
 
-  const extractMessages = [
+  const extractResponse = await callOpenRouter([
     {
       role: 'system',
-      content: `You are a ${trade} contractor. Extract the specific materials and items needed for a job.
-Return ONLY a JSON array of search terms. Be specific with brands, sizes, and specs when mentioned.
-Do NOT include tools or equipment the contractor already owns.`,
+      content: `You are a ${trade} contractor. List ONLY materials needed to purchase for a job.
+DO NOT include tools or equipment - contractors own those.
+Return valid JSON array only.`,
     },
     {
       role: 'user',
       content: `Job: "${jobDescription}"
 
-Return JSON array of 3-8 specific items/materials needed:
-["item 1 with specs", "item 2 with brand if mentioned", ...]
+Return JSON array. If user specified a price, mark it:
+[
+  {"name": "material name", "user_defined": false},
+  {"name": "paint", "user_defined": true, "price": 7, "unit": "gallon"}
+]
 
 Examples:
-- "Install Rheem 50 gal water heater" → ["Rheem 50 gallon water heater", "water heater connector kit", "gas flex line", "vent pipe"]
-- "Replace kitchen faucet" → ["kitchen faucet", "faucet supply lines", "plumbers putty"]`,
+- "Install water heater" → [{"name": "water heater", "user_defined": false}, {"name": "gas flex line", "user_defined": false}]
+- "Paint room at $7/gallon" → [{"name": "interior paint", "user_defined": true, "price": 7, "unit": "gallon"}]`,
     },
-  ];
+  ], MODEL, 600);
 
-  const extractContent = await callOpenRouter(extractMessages, MODEL, 500);
-
-  if (!extractContent || extractContent.trim() === '') {
-    throw new Error('AI returned empty response for item extraction');
+  // Parse first AI response
+  interface ExtractedMaterial {
+    name: string;
+    user_defined: boolean;
+    price?: number;
+    unit?: string;
   }
 
-  let requiredItems: string[];
+  let materials: ExtractedMaterial[] = [];
   try {
-    requiredItems = parseJSONFromResponse(extractContent);
-    if (!Array.isArray(requiredItems)) {
-      throw new Error('Expected array');
+    const parsed = parseJSONFromResponse(extractResponse);
+    if (Array.isArray(parsed)) {
+      materials = parsed.map((m: any) => ({
+        name: m.name || m.item || String(m),
+        user_defined: m.user_defined || false,
+        price: m.price || m.user_price || null,
+        unit: m.unit || 'each',
+      }));
     }
-  } catch {
-    // Fallback: use the job description itself
-    requiredItems = [jobDescription];
+  } catch (e) {
+    console.error('Failed to parse materials:', e);
+    materials = [{ name: jobDescription, user_defined: false }];
   }
 
-  console.log('Required items:', requiredItems);
+  console.log('Materials extracted:', materials.length);
+
+  // Separate user-defined from items needing lookup
+  const userDefinedItems = materials.filter(m => m.user_defined && m.price);
+  const itemsToLookup = materials.filter(m => !m.user_defined || !m.price);
+
+  console.log('User-defined items:', userDefinedItems.length);
+  console.log('Items to lookup:', itemsToLookup.length);
 
   // ============================================
-  // STEP 2: Parallel BlitzPrices searches
+  // STEP 2: Search BlitzPrices for non-user-defined items
   // ============================================
   console.log('Step 2: Searching BlitzPrices...');
 
-  const searchPromises = requiredItems.map(term => searchBlitzPrices(term, region));
-  const allResults = await Promise.all(searchPromises);
+  // Search each item, get top 5 matches
+  const searchResults: { item: string; matches: BlitzPricesItem[] }[] = [];
 
-  // Build a map of search term -> best matches (for weighted matching)
-  const itemMatches: Map<string, BlitzPricesItem[]> = new Map();
-  const allFoundItems: BlitzPricesItem[] = [];
-  const seenNames = new Set<string>();
-
-  for (let i = 0; i < requiredItems.length; i++) {
-    const term = requiredItems[i];
-    const results = allResults[i] || [];
-    itemMatches.set(term, results);
-
-    for (const item of results) {
-      if (!seenNames.has(item.name.toLowerCase())) {
-        seenNames.add(item.name.toLowerCase());
-        allFoundItems.push(item);
-      }
-    }
+  for (const item of itemsToLookup) {
+    const matches = await searchBlitzPrices(item.name, region);
+    searchResults.push({ item: item.name, matches: matches.slice(0, 5) });
   }
 
-  console.log('BlitzPrices results:', allFoundItems.length);
+  // ============================================
+  // STEP 3: Build JSON for second AI with options
+  // ============================================
+  const itemsWithOptions = searchResults.map(sr => ({
+    requested: sr.item,
+    found: sr.matches.length > 0,
+    options: sr.matches.map(m => ({
+      name: m.name,
+      price: m.avg_cost,
+      unit: m.unit,
+    })),
+  }));
 
-  // Format found items for AI, grouped by what was searched
-  const foundItemsText = requiredItems.map(term => {
-    const matches = itemMatches.get(term) || [];
-    if (matches.length === 0) {
-      return `- "${term}": NOT FOUND - estimate price`;
-    }
-    const bestMatch = matches[0];
-    return `- "${term}" → ${bestMatch.name}: $${bestMatch.avg_cost}/${bestMatch.unit}`;
-  }).join('\n');
+  console.log('Items with options:', JSON.stringify(itemsWithOptions, null, 2));
 
   // ============================================
-  // STEP 3: AI Call #2 - Build final quote
+  // STEP 4: Second AI call - Pick best matches
   // ============================================
-  console.log('Step 3: Building quote...');
+  console.log('Step 4: AI selecting items...');
 
-  const quoteMessages = [
+  const selectResponse = await callOpenRouter([
     {
       role: 'system',
-      content: `You are a ${trade} contractor building a quote. Be concise.
-Return ONLY valid JSON. No explanation.`,
+      content: `You are a ${trade} contractor. Select the best matching item for each material needed.
+Return valid JSON only. No explanation.`,
     },
     {
       role: 'user',
       content: `Job: "${jobDescription}"
 
-Price database results:
-${foundItemsText}
+For each item below, pick the best option (or estimate if no options).
 
-Labor rate: $${settings.labor_rate}/hr
-
-Build the quote using found prices. For items marked "NOT FOUND", estimate a realistic retail price.
+Items:
+${JSON.stringify(itemsWithOptions, null, 2)}
 
 Return JSON:
-{"line_items":[{"name":"item name","category":"materials|fees","qty":1,"unit":"each","retail_price":100,"from_db":true}],"labor_hours":2}
+{
+  "line_items": [
+    {"name": "item name", "qty": 1, "unit": "each", "price": 100, "source": "blitzprices"},
+    {"name": "unfound item", "qty": 1, "unit": "each", "price": 50, "source": "needs_price"}
+  ],
+  "labor_hours": 2
+}
 
 RULES:
-- Use EXACT prices from database when available (from_db: true)
-- Estimate realistic prices for NOT FOUND items (from_db: false)
-- Set practical quantities based on the job
-- Only MATERIALS and FEES - no tools/equipment
-- Clean names, no parentheticals
+- source: "blitzprices" if you picked from options, "needs_price" if no options and you estimated
+- Use practical quantities for the job
+- Only materials, NO tools
 - Estimate labor hours for a professional ${trade}`,
     },
-  ];
+  ], MODEL, 1500);
 
-  const quoteContent = await callOpenRouter(quoteMessages, MODEL, 1500);
+  // Parse second AI response
+  let aiItems: any[] = [];
+  let laborHours = 0;
 
-  if (!quoteContent || quoteContent.trim() === '') {
-    throw new Error('AI returned empty response for quote building');
+  try {
+    const parsed = parseJSONFromResponse(selectResponse);
+    aiItems = parsed.line_items || [];
+    laborHours = parsed.labor_hours || 0;
+  } catch (e) {
+    console.error('Failed to parse AI selection:', e);
   }
 
-  const aiResult = parseJSONFromResponse(quoteContent);
+  console.log('AI selected items:', aiItems.length);
 
-  if (!aiResult || !aiResult.line_items) {
-    throw new Error('AI response missing line_items');
-  }
+  // ============================================
+  // STEP 5: Build final line items
+  // ============================================
 
-  // Step 4: Build final quote with discount and markup applied
-  // Flow: retail_price → contractor_cost (after discount) → customer_price (after markup)
-  const lineItems = aiResult.line_items.map((item: any) => {
-    const retailPrice = item.retail_price || item.cost;
-    const contractorCost = calculateContractorCost(retailPrice, settings);
-    const customerPrice = calculateCustomerPrice(contractorCost, item.category, settings);
-
+  // Build user-defined line items (exact prices, no discount)
+  const userLineItems = userDefinedItems.map(item => {
+    const contractorCost = item.price!;
+    const customerPrice = calculateCustomerPrice(contractorCost, 'materials', settings);
     return {
       name: item.name,
-      category: item.category,
-      qty: item.qty,
-      unit: item.unit,
-      retail_price: retailPrice,
+      category: 'materials',
+      qty: 1,
+      unit: item.unit || 'each',
+      retail_price: contractorCost,
       contractor_cost: contractorCost,
       unit_price: customerPrice,
-      total: Math.round(item.qty * customerPrice * 100) / 100,
-      from_db: item.from_db || false,  // true if price came from BlitzPrices
-      needs_price: !item.from_db,       // backwards compat: needs_price = NOT from database
+      total: Math.round(customerPrice * 100) / 100,
+      source: 'user_defined',
     };
   });
 
-  // Calculate labor
-  const laborTotal = (aiResult.labor_hours || 0) * settings.labor_rate;
-  const helperTotal = (aiResult.helper_hours || 0) * (settings.helper_rate || 0);
+  // Build AI-selected line items (apply discount + markup)
+  const aiLineItems = aiItems.map((item: any) => {
+    const retailPrice = item.price || 0;
+    const contractorCost = calculateContractorCost(retailPrice, settings);
+    const customerPrice = calculateCustomerPrice(contractorCost, 'materials', settings);
+    return {
+      name: item.name,
+      category: 'materials',
+      qty: item.qty || 1,
+      unit: item.unit || 'each',
+      retail_price: retailPrice,
+      contractor_cost: contractorCost,
+      unit_price: customerPrice,
+      total: Math.round((item.qty || 1) * customerPrice * 100) / 100,
+      source: item.source || 'needs_price',
+    };
+  });
 
-  console.log('Quote complete:', lineItems.length, 'items');
+  // Merge: user-defined first, then AI items
+  const lineItems = [...userLineItems, ...aiLineItems];
+
+  // Calculate labor
+  const laborTotal = laborHours * settings.labor_rate;
+
+  console.log('Final quote:', lineItems.length, 'items,', laborHours, 'labor hours');
 
   return {
     line_items: lineItems,
-    labor_hours: aiResult.labor_hours || 0,
+    labor_hours: laborHours,
     labor_rate: settings.labor_rate,
     labor_total: laborTotal,
-    helper_hours: aiResult.helper_hours || 0,
-    helper_rate: settings.helper_rate || 0,
-    helper_total: helperTotal,
-    notes: aiResult.notes,
-    blitzprices_items_found: allFoundItems.length,
-    items_requested: requiredItems.length,
-    contractor_discount: settings.contractor_discount || 0,
   };
 }
 

@@ -269,10 +269,8 @@ interface UserSettings {
 
   // Pricing settings (KEY - these drive quote pricing)
   labor_rate: number;          // $/hr (e.g., 150)
-  helper_rate?: number;        // $/hr for helper (optional)
   contractor_discount: number; // decimal (e.g., 0.15 for 15% off retail)
   material_markup: number;     // decimal (e.g., 0.35 for 35%)
-  equipment_markup?: number;   // if different from materials
   fee_markup?: number;         // if different (often 0)
 
   // Tax
@@ -355,10 +353,8 @@ CREATE TABLE user_settings (
 
   -- Pricing (KEY FIELDS)
   labor_rate NUMERIC(10,2) NOT NULL DEFAULT 100,
-  helper_rate NUMERIC(10,2),
   contractor_discount NUMERIC(5,4) NOT NULL DEFAULT 0,  -- discount off retail
   material_markup NUMERIC(5,4) NOT NULL DEFAULT 0.35,
-  equipment_markup NUMERIC(5,4),
   fee_markup NUMERIC(5,4) DEFAULT 0,
 
   -- Tax
@@ -416,7 +412,6 @@ function calculateCustomerPrice(
   settings: UserSettings
 ): number {
   const markup =
-    category === 'equipment' ? (settings.equipment_markup ?? settings.material_markup) :
     category === 'fees' ? (settings.fee_markup ?? 0) :
     settings.material_markup;
 
@@ -547,10 +542,9 @@ Settings
 │
 ├── Pricing                    ← KEY SECTION
 │   ├── Labor rate ($/hr)      → e.g., $150/hr
-│   ├── Helper rate ($/hr)     → optional
 │   ├── Contractor discount (%)→ e.g., 15% off retail
 │   ├── Material markup (%)    → e.g., 35%
-│   ├── Equipment markup (%)   → optional, defaults to material
+│   ├── Fee markup (%)         → often 0
 │   └── Default tax rate (%)   → e.g., 8%
 │
 ├── Payment Method

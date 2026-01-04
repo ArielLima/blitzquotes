@@ -392,9 +392,9 @@ export default function SettingsScreen() {
     let processedValue: any = value;
 
     // Process numeric fields
-    if (['labor_rate', 'helper_rate'].includes(field)) {
+    if (field === 'labor_rate') {
       processedValue = parseFloat(value) || 0;
-    } else if (['material_markup', 'equipment_markup', 'fee_markup', 'default_tax_rate', 'contractor_discount'].includes(field)) {
+    } else if (['material_markup', 'fee_markup', 'default_tax_rate', 'contractor_discount'].includes(field)) {
       // Convert percentage to decimal
       processedValue = (parseFloat(value) || 0) / 100;
     }
@@ -529,12 +529,6 @@ export default function SettingsScreen() {
           onPress={() => openEditModal('labor_rate', 'Labor Rate ($/hr)', settings?.labor_rate?.toString() || '100', { keyboardType: 'decimal-pad', prefix: '$', suffix: '/hr' })}
         />
         <SettingsRow
-          icon="user-plus"
-          label="Helper Rate"
-          value={settings?.helper_rate ? formatCurrency(settings.helper_rate) : 'Not set'}
-          onPress={() => openEditModal('helper_rate', 'Helper Rate ($/hr)', settings?.helper_rate?.toString() || '', { keyboardType: 'decimal-pad', prefix: '$', suffix: '/hr' })}
-        />
-        <SettingsRow
           icon="tag"
           iconColor={colors.status.success}
           label="Contractor Discount"
@@ -547,13 +541,6 @@ export default function SettingsScreen() {
           label="Material Markup"
           value={formatPercent(settings?.material_markup)}
           onPress={() => openEditModal('material_markup', 'Material Markup (%)', ((settings?.material_markup || 0.35) * 100).toFixed(0), { keyboardType: 'decimal-pad', suffix: '%' })}
-        />
-        <SettingsRow
-          icon="wrench"
-          iconColor={colors.status.warning}
-          label="Equipment Markup"
-          value={settings?.equipment_markup ? formatPercent(settings.equipment_markup) : 'Default'}
-          onPress={() => openEditModal('equipment_markup', 'Equipment Markup (%)', settings?.equipment_markup ? (settings.equipment_markup * 100).toFixed(0) : '', { keyboardType: 'decimal-pad', suffix: '%' })}
         />
         <SettingsRow
           icon="file-text-o"

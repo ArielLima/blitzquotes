@@ -40,7 +40,7 @@ interface QuoteLineItem {
   contractor_cost: number;   // After contractor discount
   unit_price: number;        // Customer price (after markup)
   total: number;
-  needs_price: boolean;
+  source: 'user_defined' | 'blitzprices' | 'needs_price';
 }
 
 export default function NewQuoteScreen() {
@@ -199,10 +199,8 @@ export default function NewQuoteScreen() {
           user_token: session?.access_token,
           settings: {
             labor_rate: settings?.labor_rate || 100,
-            helper_rate: settings?.helper_rate,
             contractor_discount: settings?.contractor_discount || 0,
             material_markup: settings?.material_markup || 0.35,
-            equipment_markup: settings?.equipment_markup,
             fee_markup: settings?.fee_markup,
             default_tax_rate: settings?.default_tax_rate || 0,
             state: settings?.state,
@@ -262,9 +260,7 @@ export default function NewQuoteScreen() {
   // Calculate customer price from contractor cost (apply markup)
   const calculateCustomerPrice = (contractorCost: number, category: string) => {
     let markup = settings?.material_markup || 0.35;
-    if (category === 'equipment' && settings?.equipment_markup !== undefined) {
-      markup = settings.equipment_markup;
-    } else if (category === 'fees' && settings?.fee_markup !== undefined) {
+    if (category === 'fees' && settings?.fee_markup !== undefined) {
       markup = settings.fee_markup;
     }
     return Math.round(contractorCost * (1 + markup) * 100) / 100;
@@ -285,7 +281,7 @@ export default function NewQuoteScreen() {
       contractor_cost: contractorCost,
       unit_price: unitPrice,
       total: unitPrice,
-      needs_price: false,
+      source: 'blitzprices',
     };
 
     if (editingIndex !== null) {
@@ -324,8 +320,7 @@ export default function NewQuoteScreen() {
       contractor_cost: unitPrice,
       unit_price: unitPrice,
       total: Math.round(unitPrice * qty * 100) / 100,
-      needs_price: false,
-      from_db: false,
+      source: 'user_defined',
     };
 
     if (editingIndex !== null) {
@@ -974,9 +969,19 @@ export default function NewQuoteScreen() {
                   <Text style={[styles.lineItemName, { color: isDark ? colors.text.primaryDark : colors.text.primary }]} numberOfLines={2}>
                     {item.name}
                   </Text>
-                  {item.needs_price && (
+                  {item.source === 'needs_price' && (
                     <View style={styles.needsPriceBadge}>
                       <Text style={styles.needsPriceBadgeText}>Needs Price</Text>
+                    </View>
+                  )}
+                  {item.source === 'blitzprices' && (
+                    <View style={styles.fromDbBadge}>
+                      <Text style={styles.fromDbBadgeText}>BlitzPrices</Text>
+                    </View>
+                  )}
+                  {item.source === 'user_defined' && (
+                    <View style={styles.userSpecifiedBadge}>
+                      <Text style={styles.userSpecifiedBadgeText}>Your Price</Text>
                     </View>
                   )}
                 </View>
@@ -1725,6 +1730,28 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: colors.status.errorDark,
+  },
+  fromDbBadge: {
+    backgroundColor: colors.status.successBg,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  fromDbBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.status.successDark,
+  },
+  userSpecifiedBadge: {
+    backgroundColor: colors.primary.blueBg,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  userSpecifiedBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary.blue,
   },
   addItemButton: {
     flexDirection: 'row',
