@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -14,6 +14,8 @@ import {
   Modal,
   FlatList,
   Image,
+  Animated,
+  BackHandler,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -86,6 +88,42 @@ export default function NewQuoteScreen() {
   const [laborTotal, setLaborTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState<'analyzing' | 'searching' | 'building' | null>(null);
+  const [showAIModal, setShowAIModal] = useState(false);
+
+  // Animated values for loading modal
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Prevent back navigation during AI generation
+  useEffect(() => {
+    if (!showAIModal) return;
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      // Prevent back press during AI generation
+      return true;
+    });
+
+    // Pulse animation for the icon
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+
+    return () => {
+      backHandler.remove();
+      pulse.stop();
+    };
+  }, [showAIModal]);
   const [notes, setNotes] = useState('');
   const [attachments, setAttachments] = useState<QuoteAttachment[]>([]);
   const [pendingPhotos, setPendingPhotos] = useState<{ uri: string; name: string }[]>([]);
@@ -177,6 +215,7 @@ export default function NewQuoteScreen() {
 
     setLoading(true);
     setLoadingStep('analyzing');
+    setShowAIModal(true);
 
     // Progress simulation - the API is a single call, so we estimate timing
     const progressTimer = setInterval(() => {
@@ -219,12 +258,15 @@ export default function NewQuoteScreen() {
         setLineItems(data.items.line_items || []);
         setLaborHours(data.items.labor_hours || 0);
         setLaborTotal(data.items.labor_total || 0);
+        setShowAIModal(false);
         setStep('review');
       } else {
+        setShowAIModal(false);
         Alert.alert('No items', 'AI could not generate items for this job. Try a more detailed description.');
       }
     } catch (error: any) {
       clearInterval(progressTimer);
+      setShowAIModal(false);
       Alert.alert('Error', error.message || 'Failed to generate quote');
     } finally {
       setLoading(false);
@@ -648,9 +690,10 @@ export default function NewQuoteScreen() {
         <Stack.Screen
           options={{
             title: isEditing ? `Edit ${documentType}` : isDuplicating ? `Duplicate ${documentType}` : 'New Quote',
+            gestureEnabled: !showAIModal,
             headerLeft: () => (
-              <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
-                <FontAwesome name="times" size={20} color={isDark ? colors.text.primaryDark : colors.text.primary} />
+              <TouchableOpacity onPress={() => router.back()} style={styles.headerButton} disabled={showAIModal}>
+                <FontAwesome name="times" size={20} color={showAIModal ? colors.gray[400] : (isDark ? colors.text.primaryDark : colors.text.primary)} />
               </TouchableOpacity>
             ),
           }}
@@ -810,27 +853,14 @@ export default function NewQuoteScreen() {
               ]}
               onPress={handleContinue}
               disabled={loading || (preferredMode === 'ai' && !jobDescription.trim())}>
-              {loading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator color={colors.text.inverse} size="small" />
-                  <Text style={styles.loadingText}>
-                    {loadingStep === 'analyzing' && 'Analyzing job requirements...'}
-                    {loadingStep === 'searching' && 'Searching prices...'}
-                    {loadingStep === 'building' && 'Building your quote...'}
-                  </Text>
-                </View>
-              ) : (
-                <>
-                  <FontAwesome
-                    name={preferredMode === 'manual' ? 'arrow-right' : 'magic'}
-                    size={18}
-                    color={colors.text.inverse}
-                  />
-                  <Text style={styles.primaryButtonText}>
-                    {preferredMode === 'manual' ? 'Continue' : 'Generate Quote'}
-                  </Text>
-                </>
-              )}
+              <FontAwesome
+                name={preferredMode === 'manual' ? 'arrow-right' : 'magic'}
+                size={18}
+                color={colors.text.inverse}
+              />
+              <Text style={styles.primaryButtonText}>
+                {preferredMode === 'manual' ? 'Continue' : 'Generate Quote'}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -879,6 +909,99 @@ export default function NewQuoteScreen() {
                   onPress={() => setShowValidUntilPicker(false)}>
                   <Text style={styles.dateModalButtonText}>Done</Text>
                 </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+
+          {/* AI Quote Generation Modal */}
+          <Modal
+            visible={showAIModal}
+            animationType="fade"
+            transparent={true}
+            onRequestClose={() => {/* Prevent closing */}}>
+            <View style={styles.aiModalOverlay}>
+              <View style={[styles.aiModalContent, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
+                <Animated.View style={[styles.aiModalIconContainer, { transform: [{ scale: pulseAnim }] }]}>
+                  <View style={styles.aiModalIconCircle}>
+                    <FontAwesome name="magic" size={32} color={colors.text.inverse} />
+                  </View>
+                </Animated.View>
+
+                <Text style={[styles.aiModalTitle, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
+                  Building Your Quote
+                </Text>
+
+                <View style={styles.aiModalSteps}>
+                  <View style={styles.aiModalStep}>
+                    <View style={[
+                      styles.aiModalStepIcon,
+                      loadingStep === 'analyzing' && styles.aiModalStepIconActive,
+                      (loadingStep === 'searching' || loadingStep === 'building') && styles.aiModalStepIconDone,
+                    ]}>
+                      {(loadingStep === 'searching' || loadingStep === 'building') ? (
+                        <FontAwesome name="check" size={12} color={colors.text.inverse} />
+                      ) : loadingStep === 'analyzing' ? (
+                        <ActivityIndicator size="small" color={colors.text.inverse} />
+                      ) : (
+                        <Text style={styles.aiModalStepNumber}>1</Text>
+                      )}
+                    </View>
+                    <Text style={[
+                      styles.aiModalStepText,
+                      loadingStep === 'analyzing' && styles.aiModalStepTextActive,
+                      { color: isDark ? colors.text.primaryDark : colors.text.primary }
+                    ]}>
+                      Analyzing job requirements
+                    </Text>
+                  </View>
+
+                  <View style={styles.aiModalStep}>
+                    <View style={[
+                      styles.aiModalStepIcon,
+                      loadingStep === 'searching' && styles.aiModalStepIconActive,
+                      loadingStep === 'building' && styles.aiModalStepIconDone,
+                    ]}>
+                      {loadingStep === 'building' ? (
+                        <FontAwesome name="check" size={12} color={colors.text.inverse} />
+                      ) : loadingStep === 'searching' ? (
+                        <ActivityIndicator size="small" color={colors.text.inverse} />
+                      ) : (
+                        <Text style={styles.aiModalStepNumber}>2</Text>
+                      )}
+                    </View>
+                    <Text style={[
+                      styles.aiModalStepText,
+                      loadingStep === 'searching' && styles.aiModalStepTextActive,
+                      { color: isDark ? colors.text.primaryDark : colors.text.primary }
+                    ]}>
+                      Searching 50,000+ prices
+                    </Text>
+                  </View>
+
+                  <View style={styles.aiModalStep}>
+                    <View style={[
+                      styles.aiModalStepIcon,
+                      loadingStep === 'building' && styles.aiModalStepIconActive,
+                    ]}>
+                      {loadingStep === 'building' ? (
+                        <ActivityIndicator size="small" color={colors.text.inverse} />
+                      ) : (
+                        <Text style={styles.aiModalStepNumber}>3</Text>
+                      )}
+                    </View>
+                    <Text style={[
+                      styles.aiModalStepText,
+                      loadingStep === 'building' && styles.aiModalStepTextActive,
+                      { color: isDark ? colors.text.primaryDark : colors.text.primary }
+                    ]}>
+                      Building your quote
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={[styles.aiModalHint, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
+                  This usually takes 10-15 seconds
+                </Text>
               </View>
             </View>
           </Modal>
@@ -2041,5 +2164,77 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     backgroundColor: 'transparent',
     paddingHorizontal: 8,
+  },
+  // AI Modal Styles
+  aiModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  aiModalContent: {
+    width: '100%',
+    maxWidth: 320,
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+  },
+  aiModalIconContainer: {
+    marginBottom: 24,
+  },
+  aiModalIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.primary.blue,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  aiModalTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 28,
+    textAlign: 'center',
+  },
+  aiModalSteps: {
+    width: '100%',
+    gap: 16,
+    marginBottom: 24,
+  },
+  aiModalStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  aiModalStepIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.gray[300],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  aiModalStepIconActive: {
+    backgroundColor: colors.primary.blue,
+  },
+  aiModalStepIconDone: {
+    backgroundColor: colors.status.success,
+  },
+  aiModalStepNumber: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.gray[600],
+  },
+  aiModalStepText: {
+    fontSize: 15,
+    flex: 1,
+  },
+  aiModalStepTextActive: {
+    fontWeight: '600',
+  },
+  aiModalHint: {
+    fontSize: 13,
+    textAlign: 'center',
   },
 });
