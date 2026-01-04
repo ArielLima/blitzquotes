@@ -1,0 +1,198 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0d1117;
+  color: #c9d1d9;
+  padding: 20px;
+}
+
+.container { max-width: 1200px; margin: 0 auto; }
+
+h1 { margin-bottom: 20px; color: #58a6ff; font-size: 24px; }
+
+.search-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+input {
+  flex: 1;
+  max-width: 400px;
+  padding: 10px 15px;
+  border-radius: 6px;
+  border: 1px solid #30363d;
+  background: #161b22;
+  color: #c9d1d9;
+  font-size: 14px;
+}
+
+button {
+  padding: 10px 20px;
+  border-radius: 6px;
+  border: 1px solid #238636;
+  background: #238636;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+}
+button:hover { background: #2ea043; }
+button.secondary { background: #21262d; border-color: #30363d; }
+
+.recent { margin-bottom: 30px; }
+.recent-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.recent h2 { font-size: 13px; color: #8b949e; text-transform: uppercase; margin: 0; }
+
+.date-filter {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.date-filter label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #8b949e;
+}
+.date-filter input[type="datetime-local"],
+.date-filter select {
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 4px;
+  border: 1px solid #30363d;
+  background: #161b22;
+  color: #c9d1d9;
+}
+.date-filter input[type="datetime-local"] { max-width: 200px; }
+.date-filter select { min-width: 120px; }
+.date-filter button {
+  padding: 6px 14px;
+  font-size: 12px;
+}
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  padding: 6px 12px;
+  background: #21262d;
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid #30363d;
+}
+.chip:hover { border-color: #58a6ff; }
+.chip .time { color: #8b949e; margin-left: 8px; }
+.chip .source-tag {
+  background: #238636;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  margin-right: 6px;
+}
+
+.trace-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px;
+  background: #161b22;
+  border-radius: 8px;
+  border: 1px solid #30363d;
+  margin-bottom: 20px;
+}
+.trace-id { font-family: monospace; color: #58a6ff; display: flex; align-items: center; gap: 8px; }
+.trace-id .source-tag {
+  background: #238636;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+.meta { color: #8b949e; font-size: 13px; }
+.trace-actions { display: flex; align-items: center; gap: 10px; }
+
+.steps { display: flex; flex-direction: column; gap: 12px; }
+
+.step {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.step.error { border-color: #f85149; }
+
+.step-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 15px;
+  background: #21262d;
+  cursor: pointer;
+}
+.step-header:hover { background: #30363d; }
+
+.step-name {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.step-num {
+  background: #30363d;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #8b949e;
+}
+
+.duration { color: #8b949e; font-size: 13px; }
+.duration.slow { color: #d29922; }
+.duration.very-slow { color: #f85149; }
+
+.status {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.status.ok { background: #238636; }
+.status.err { background: #f85149; }
+
+.step-body {
+  padding: 15px;
+  border-top: 1px solid #30363d;
+}
+
+.json-section { margin-bottom: 12px; }
+.json-section:last-child { margin-bottom: 0; }
+.json-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #8b949e;
+  margin-bottom: 5px;
+}
+.json-content {
+  background: #0d1117;
+  padding: 12px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 400px;
+  overflow: auto;
+}
+.json-content.error { color: #f85149; background: #1c1214; }
+
+.empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: #8b949e;
+}

@@ -36,6 +36,65 @@ async function verifyUserToken(token: string): Promise<{ user: any } | null> {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
+// ============================================
+// TRACING - for debugging AI workflow
+// ============================================
+class Tracer {
+  private traceId: string;
+  private source: string;
+  private stepNumber: number = 0;
+
+  constructor(source: string) {
+    this.traceId = crypto.randomUUID();
+    this.source = source;
+  }
+
+  getTraceId(): string {
+    return this.traceId;
+  }
+
+  async log(step: string, input: any, fn: () => Promise<any>): Promise<any> {
+    this.stepNumber++;
+    const startTime = Date.now();
+    let output: any = null;
+    let error: string | null = null;
+
+    try {
+      output = await fn();
+      return output;
+    } catch (e: any) {
+      error = e.message || String(e);
+      throw e;
+    } finally {
+      const duration = Date.now() - startTime;
+
+      // Log to database (don't await, fire and forget)
+      supabase.from('quote_traces').insert({
+        trace_id: this.traceId,
+        source: this.source,
+        step,
+        step_number: this.stepNumber,
+        duration_ms: duration,
+        input: this.sanitize(input),
+        output: this.sanitize(output),
+        error,
+      }).then(({ error: dbError }) => {
+        if (dbError) console.error('Trace log failed:', dbError.message);
+      });
+    }
+  }
+
+  // Truncate large objects to avoid DB bloat
+  private sanitize(obj: any): any {
+    if (!obj) return obj;
+    const str = JSON.stringify(obj);
+    if (str.length > 10000) {
+      return { _truncated: true, length: str.length, preview: str.slice(0, 500) };
+    }
+    return obj;
+  }
+}
+
 interface BlitzPricesItem {
   name: string;
   category: string;
@@ -94,8 +153,6 @@ async function callOpenRouter(messages: any[], model: string = MODEL, maxTokens:
     throw new Error('OPENROUTER_API_KEY not configured');
   }
 
-  console.log('Calling OpenRouter with model:', model);
-
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -113,10 +170,9 @@ async function callOpenRouter(messages: any[], model: string = MODEL, maxTokens:
   });
 
   const responseText = await response.text();
-  console.log('OpenRouter response status:', response.status);
 
   if (!response.ok) {
-    console.error('OpenRouter error response:', responseText);
+    console.error('OpenRouter error:', response.status, responseText);
     throw new Error(`OpenRouter error (${response.status}): ${responseText}`);
   }
 
@@ -124,19 +180,56 @@ async function callOpenRouter(messages: any[], model: string = MODEL, maxTokens:
   try {
     data = JSON.parse(responseText);
   } catch (e) {
-    console.error('Failed to parse OpenRouter response:', responseText);
+    console.error('OpenRouter invalid JSON:', responseText.slice(0, 200));
     throw new Error('OpenRouter returned invalid JSON');
   }
 
   if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-    console.error('Unexpected OpenRouter response structure:', JSON.stringify(data));
+    console.error('OpenRouter unexpected structure:', JSON.stringify(data).slice(0, 200));
     throw new Error('OpenRouter response missing choices');
   }
 
-  const content = data.choices[0].message.content;
-  console.log('OpenRouter content length:', content?.length || 0);
+  return data.choices[0].message.content || '';
+}
 
-  return content || '';
+function extractJSON(content: string, startChar: string): string | null {
+  const endChar = startChar === '[' ? ']' : '}';
+  const start = content.indexOf(startChar);
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = start; i < content.length; i++) {
+    const char = content[i];
+
+    if (escape) {
+      escape = false;
+      continue;
+    }
+
+    if (char === '\\' && inString) {
+      escape = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) continue;
+
+    if (char === startChar) depth++;
+    if (char === endChar) depth--;
+
+    if (depth === 0) {
+      return content.slice(start, i + 1);
+    }
+  }
+
+  return null;
 }
 
 function parseJSONFromResponse(content: string): any {
@@ -146,20 +239,29 @@ function parseJSONFromResponse(content: string): any {
     return JSON.parse(codeBlockMatch[1].trim());
   }
 
-  // Try to find object in response
-  const objectMatch = content.match(/\{[\s\S]*\}/);
-  if (objectMatch) {
-    return JSON.parse(objectMatch[0]);
+  // Try to extract balanced array first (more common for our use case)
+  const arrayJson = extractJSON(content, '[');
+  if (arrayJson) {
+    try {
+      return JSON.parse(arrayJson);
+    } catch (e) {
+      console.error('JSON parse failed for array:', arrayJson.slice(0, 200));
+    }
   }
 
-  // Try to find array in response
-  const arrayMatch = content.match(/\[[\s\S]*\]/);
-  if (arrayMatch) {
-    return JSON.parse(arrayMatch[0]);
+  // Try to extract balanced object
+  const objectJson = extractJSON(content, '{');
+  if (objectJson) {
+    try {
+      return JSON.parse(objectJson);
+    } catch (e) {
+      console.error('JSON parse failed for object:', objectJson.slice(0, 200));
+    }
   }
 
-  // Try parsing the whole thing
-  return JSON.parse(content);
+  // Last resort: try parsing the whole content
+  console.error('Falling back to raw parse, content:', content.slice(0, 200));
+  return JSON.parse(content.trim());
 }
 
 async function analyzePriceTag(imageBase64: string, trade: string) {
@@ -218,14 +320,21 @@ async function generateQuote(
   trade: string,
   settings: UserSettings
 ) {
+  const tracer = new Tracer('generate_quote');
+  console.log('trace_id:', tracer.getTraceId());
   const region = settings.state || 'US';
+
+  interface ExtractedMaterial {
+    name: string;
+    user_defined: boolean;
+    price?: number;
+    unit?: string;
+  }
 
   // ============================================
   // STEP 1: First AI call - Extract materials needed
   // ============================================
-  console.log('Step 1: Extracting materials...');
-
-  const extractResponse = await callOpenRouter([
+  const extractPrompt = [
     {
       role: 'system',
       content: `You are a ${trade} contractor. List ONLY materials needed to purchase for a job.
@@ -246,75 +355,70 @@ Examples:
 - "Install water heater" → [{"name": "water heater", "user_defined": false}, {"name": "gas flex line", "user_defined": false}]
 - "Paint room at $7/gallon" → [{"name": "interior paint", "user_defined": true, "price": 7, "unit": "gallon"}]`,
     },
-  ], MODEL, 600);
+  ];
 
-  // Parse first AI response
-  interface ExtractedMaterial {
-    name: string;
-    user_defined: boolean;
-    price?: number;
-    unit?: string;
-  }
+  const materials = await tracer.log(
+    'extract_materials',
+    { prompt: extractPrompt },
+    async () => {
+      const response = await callOpenRouter(extractPrompt, MODEL, 600);
 
-  let materials: ExtractedMaterial[] = [];
-  try {
-    const parsed = parseJSONFromResponse(extractResponse);
-    if (Array.isArray(parsed)) {
-      materials = parsed.map((m: any) => ({
+      let parsed;
+      try {
+        parsed = parseJSONFromResponse(response);
+      } catch (e: any) {
+        // Include raw response in error for debugging
+        throw new Error(`${e.message} | Raw: ${response.slice(0, 300)}`);
+      }
+
+      if (!Array.isArray(parsed)) throw new Error('Expected array');
+
+      return parsed.map((m: any) => ({
         name: m.name || m.item || String(m),
         user_defined: m.user_defined || false,
         price: m.price || m.user_price || null,
         unit: m.unit || 'each',
       }));
     }
-  } catch (e) {
-    console.error('Failed to parse materials:', e);
-    materials = [{ name: jobDescription, user_defined: false }];
-  }
-
-  console.log('Materials extracted:', materials.length);
+  ) as ExtractedMaterial[];
 
   // Separate user-defined from items needing lookup
   const userDefinedItems = materials.filter(m => m.user_defined && m.price);
   const itemsToLookup = materials.filter(m => !m.user_defined || !m.price);
 
-  console.log('User-defined items:', userDefinedItems.length);
-  console.log('Items to lookup:', itemsToLookup.length);
-
   // ============================================
   // STEP 2: Search BlitzPrices for non-user-defined items
   // ============================================
-  console.log('Step 2: Searching BlitzPrices...');
-
-  // Search each item, get top 5 matches
-  const searchResults: { item: string; matches: BlitzPricesItem[] }[] = [];
-
-  for (const item of itemsToLookup) {
-    const matches = await searchBlitzPrices(item.name, region);
-    searchResults.push({ item: item.name, matches: matches.slice(0, 5) });
-  }
+  const searchResults = await tracer.log(
+    'search_blitzprices',
+    { items: itemsToLookup.map(i => i.name), region },
+    async () => {
+      const results: { item: string; matches: BlitzPricesItem[] }[] = [];
+      for (const item of itemsToLookup) {
+        const matches = await searchBlitzPrices(item.name, region);
+        results.push({ item: item.name, matches: matches.slice(0, 5) });
+      }
+      return results;
+    }
+  );
 
   // ============================================
-  // STEP 3: Build JSON for second AI with options
+  // STEP 3: Build options for second AI
   // ============================================
-  const itemsWithOptions = searchResults.map(sr => ({
+  const itemsWithOptions = searchResults.map((sr: any) => ({
     requested: sr.item,
     found: sr.matches.length > 0,
-    options: sr.matches.map(m => ({
+    options: sr.matches.map((m: BlitzPricesItem) => ({
       name: m.name,
       price: m.avg_cost,
       unit: m.unit,
     })),
   }));
 
-  console.log('Items with options:', JSON.stringify(itemsWithOptions, null, 2));
-
   // ============================================
   // STEP 4: Second AI call - Pick best matches
   // ============================================
-  console.log('Step 4: AI selecting items...');
-
-  const selectResponse = await callOpenRouter([
+  const selectPrompt = [
     {
       role: 'system',
       content: `You are a ${trade} contractor. Select the best matching item for each material needed.
@@ -344,75 +448,80 @@ RULES:
 - Only materials, NO tools
 - Estimate labor hours for a professional ${trade}`,
     },
-  ], MODEL, 1500);
+  ];
 
-  // Parse second AI response
-  let aiItems: any[] = [];
-  let laborHours = 0;
+  const aiResult = await tracer.log(
+    'select_items',
+    { prompt: selectPrompt },
+    async () => {
+      const response = await callOpenRouter(selectPrompt, MODEL, 1500);
+      try {
+        return parseJSONFromResponse(response);
+      } catch (e: any) {
+        throw new Error(`${e.message} | Raw: ${response.slice(0, 300)}`);
+      }
+    }
+  );
 
-  try {
-    const parsed = parseJSONFromResponse(selectResponse);
-    aiItems = parsed.line_items || [];
-    laborHours = parsed.labor_hours || 0;
-  } catch (e) {
-    console.error('Failed to parse AI selection:', e);
-  }
-
-  console.log('AI selected items:', aiItems.length);
+  const aiItems = aiResult.line_items || [];
+  const laborHours = aiResult.labor_hours || 0;
 
   // ============================================
   // STEP 5: Build final line items
   // ============================================
+  const finalResult = await tracer.log(
+    'build_final_quote',
+    { userDefinedCount: userDefinedItems.length, aiItemsCount: aiItems.length, laborHours },
+    async () => {
+      // Build user-defined line items (exact prices, no markup - user specifies customer price)
+      const userLineItems = userDefinedItems.map(item => {
+        const customerPrice = item.price!;
+        return {
+          name: item.name,
+          category: 'materials',
+          qty: 1,
+          unit: item.unit || 'each',
+          retail_price: customerPrice,
+          contractor_cost: customerPrice,
+          unit_price: customerPrice,
+          total: Math.round(customerPrice * 100) / 100,
+          source: 'user_defined',
+        };
+      });
 
-  // Build user-defined line items (exact prices, no discount)
-  const userLineItems = userDefinedItems.map(item => {
-    const contractorCost = item.price!;
-    const customerPrice = calculateCustomerPrice(contractorCost, 'materials', settings);
-    return {
-      name: item.name,
-      category: 'materials',
-      qty: 1,
-      unit: item.unit || 'each',
-      retail_price: contractorCost,
-      contractor_cost: contractorCost,
-      unit_price: customerPrice,
-      total: Math.round(customerPrice * 100) / 100,
-      source: 'user_defined',
-    };
-  });
+      // Build AI-selected line items (apply discount + markup)
+      const aiLineItems = aiItems.map((item: any) => {
+        const retailPrice = item.price || 0;
+        const contractorCost = calculateContractorCost(retailPrice, settings);
+        const customerPrice = calculateCustomerPrice(contractorCost, 'materials', settings);
+        return {
+          name: item.name,
+          category: 'materials',
+          qty: item.qty || 1,
+          unit: item.unit || 'each',
+          retail_price: retailPrice,
+          contractor_cost: contractorCost,
+          unit_price: customerPrice,
+          total: Math.round((item.qty || 1) * customerPrice * 100) / 100,
+          source: item.source || 'needs_price',
+        };
+      });
 
-  // Build AI-selected line items (apply discount + markup)
-  const aiLineItems = aiItems.map((item: any) => {
-    const retailPrice = item.price || 0;
-    const contractorCost = calculateContractorCost(retailPrice, settings);
-    const customerPrice = calculateCustomerPrice(contractorCost, 'materials', settings);
-    return {
-      name: item.name,
-      category: 'materials',
-      qty: item.qty || 1,
-      unit: item.unit || 'each',
-      retail_price: retailPrice,
-      contractor_cost: contractorCost,
-      unit_price: customerPrice,
-      total: Math.round((item.qty || 1) * customerPrice * 100) / 100,
-      source: item.source || 'needs_price',
-    };
-  });
+      // Merge: user-defined first, then AI items
+      const lineItems = [...userLineItems, ...aiLineItems];
+      const laborTotal = laborHours * settings.labor_rate;
 
-  // Merge: user-defined first, then AI items
-  const lineItems = [...userLineItems, ...aiLineItems];
+      return {
+        line_items: lineItems,
+        labor_hours: laborHours,
+        labor_rate: settings.labor_rate,
+        labor_total: laborTotal,
+        trace_id: tracer.getTraceId(),
+      };
+    }
+  );
 
-  // Calculate labor
-  const laborTotal = laborHours * settings.labor_rate;
-
-  console.log('Final quote:', lineItems.length, 'items,', laborHours, 'labor hours');
-
-  return {
-    line_items: lineItems,
-    labor_hours: laborHours,
-    labor_rate: settings.labor_rate,
-    labor_total: laborTotal,
-  };
+  return finalResult;
 }
 
 async function generatePricebook(trade: string, zipCode?: string) {
