@@ -23,7 +23,7 @@ BlitzQuotes helps solo and small trade contractors (plumbers, HVAC, electricians
 
 ### Quote Management
 - **Quotes Tab** - View pending quotes (Draft → Sent → Viewed)
-- **View Notifications** - See when customers view your quotes
+- **Push Notifications** - Get notified when customers view or approve quotes
 - **Edit & Delete** - Modify any quote, not just drafts
 - **Filter & Search** - Filter by status, search by customer or job
 - **Valid Until Dates** - Set expiration dates on quotes
@@ -145,6 +145,7 @@ blitzquotes/
 ├── lib/                   # Utilities and clients
 │   ├── supabase.ts       # Supabase client
 │   ├── blitzprices.ts    # BlitzPrices API
+│   ├── notifications.ts  # Push notification helpers
 │   ├── store.ts          # Zustand store
 │   └── utils.ts          # Helpers
 ├── supabase/
@@ -195,10 +196,35 @@ npx expo run:ios
 # Run on Android emulator
 npx expo run:android
 
+# Run on physical device (requires code signing)
+npx expo run:ios --device
+
+# Run with tunnel (for physical device on different network)
+npx expo start --dev-client --tunnel
+
 # Deploy Supabase functions
 supabase functions deploy ai
 supabase functions deploy blitzprices
 supabase functions deploy quote-view
+```
+
+## EAS Build (Production)
+
+```bash
+# Install EAS CLI
+npm install -g eas-cli
+
+# Login to Expo
+eas login
+
+# Development build (for testing on device)
+eas build --profile development --platform ios
+
+# Production build
+eas build --profile production --platform ios
+
+# Submit to App Store
+eas submit --platform ios
 ```
 
 ## Development Tools

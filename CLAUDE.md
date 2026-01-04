@@ -572,6 +572,7 @@ blitzquotes/
 ├── lib/
 │   ├── supabase.ts          # Supabase client
 │   ├── blitzprices.ts       # BlitzPrices API client
+│   ├── notifications.ts     # Push notification helpers
 │   ├── store.ts             # Zustand store
 │   └── utils.ts             # Helpers (formatting, etc.)
 ├── supabase/
@@ -605,12 +606,21 @@ OPENROUTER_API_KEY=sk-or-xxx           # Set in Supabase secrets
 ## Development Commands
 
 ```bash
-npm install           # Install dependencies
-npx expo start        # Start dev server
-npx expo run:ios      # Run on iOS
-npx expo run:android  # Run on Android
-eas build             # Production build
-eas submit            # Submit to stores
+npm install                      # Install dependencies
+npx expo start                   # Start dev server
+npx expo run:ios                 # Run on iOS simulator
+npx expo run:android             # Run on Android emulator
+npx expo run:ios --device        # Run on physical iOS device
+npx expo start --dev-client --tunnel  # Run with tunnel for physical device
+```
+
+## EAS Build Commands
+
+```bash
+eas login                                    # Login to Expo
+eas build --profile development --platform ios    # Dev build for testing
+eas build --profile production --platform ios     # Production build
+eas submit --platform ios                    # Submit to App Store
 ```
 
 ---
@@ -624,7 +634,7 @@ eas submit            # Submit to stores
 - [ ] Create BlitzPrices tables
 - [ ] **Run scrapers to seed BlitzPrices with 50-100k items** (see `/scrapers/CLAUDE.md`)
 - [ ] Test on real devices (iOS + Android)
-- [ ] Set up EAS Build
+- [x] Set up EAS Build
 - [ ] **App version control** - Force update mechanism when app version is outdated
   - Store minimum allowed version in Supabase or remote config
   - Check on app launch, show blocking modal if update required
