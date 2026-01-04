@@ -598,7 +598,8 @@ blitzquotes/
 # .env.local (do not commit)
 EXPO_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=xxx
-OPENROUTER_API_KEY=sk-or-xxx
+EXPO_PUBLIC_RADAR_KEY=prj_live_pk_xxx  # Address autocomplete
+OPENROUTER_API_KEY=sk-or-xxx           # Set in Supabase secrets
 ```
 
 ---
@@ -626,12 +627,33 @@ eas submit            # Submit to stores
 - [ ] **Run scrapers to seed BlitzPrices with 50-100k items** (see `/scrapers/CLAUDE.md`)
 - [ ] Test on real devices (iOS + Android)
 - [ ] Set up EAS Build
+- [ ] **App version control** - Force update mechanism when app version is outdated
+  - Store minimum allowed version in Supabase or remote config
+  - Check on app launch, show blocking modal if update required
+- [ ] **Environment switching** - Production vs Test mode
+  - Use separate Supabase projects or schema for test/prod data
+  - Environment variable to toggle (EXPO_PUBLIC_ENV=prod|test)
+  - Different API keys per environment
 
 ---
 
 ## Roadmap
 
 ### Recently Completed
+- [x] **Photo Attachments** - Attach photos directly to quotes, jobs, and invoices
+  - Add photos from camera or gallery with one tap
+  - Photos auto-upload to Supabase storage
+  - View photos full-screen, remove with confirmation
+  - Photos display on customer-facing quote page
+  - No need to go through edit flow - add directly from detail page
+- [x] **Job Site Address** - Track where work is being done
+  - Address field on all quotes/jobs/invoices
+  - Address autocomplete powered by Radar API (100k free/month)
+  - Shows on customer view and PDF exports
+- [x] **Address Autocomplete** - Professional address entry with Radar SDK
+  - Real-time address suggestions as you type
+  - Full address formatting with city, state, zip
+  - Works in quote creation and editing
 - [x] **PDF Export** - Download quotes/invoices as PDF from customer web view
   - Professional document styling with jsPDF
   - Contractor logo in header (when available)
@@ -662,11 +684,13 @@ eas submit            # Submit to stores
 - [x] **Settings: Logo upload** - Image picker uploads to Supabase storage
 - [x] **Settings: Address field** - Business address input field
 - [x] **AI Model Upgrade** - Switched from gpt-5-mini to claude-sonnet-4 for better results
+- [x] **Email Sending** - Send quotes/invoices via email
+  - Opens native email app with pre-filled subject and body
+  - Shows customer email in send modal
+  - Grayed out if no email address saved
 
 ### High Priority (Release)
-- [ ] **Photo attachments on quotes** - Attach photos of work area, damage, materials
 - [ ] **Push notifications** - Alert when customer views/approves quote
-- [ ] **Email sending option** - Alternative to SMS for sending quotes
 - [ ] **Quick quote templates** - Save common jobs as one-tap templates
 
 ### Medium Priority (Post-Release)

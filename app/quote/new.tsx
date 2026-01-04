@@ -24,6 +24,8 @@ import { useStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/utils';
 import { searchBlitzPrices, type BlitzPricesResult } from '@/lib/blitzprices';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
+import PhotoPicker from '@/components/PhotoPicker';
 import type { QuoteAttachment } from '@/types';
 
 const QUOTE_MODE_KEY = 'blitzquotes_quote_mode';
@@ -780,19 +782,11 @@ export default function NewQuoteScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                    color: isDark ? '#FFFFFF' : '#111827',
-                    borderColor: isDark ? '#374151' : '#E5E7EB',
-                  },
-                ]}
-                placeholder="Job site address"
-                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              <AddressAutocomplete
                 value={jobAddress}
                 onChangeText={setJobAddress}
+                placeholder="Job site address"
+                style={styles.addressInput}
               />
             </View>
 
@@ -940,13 +934,14 @@ export default function NewQuoteScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
             />
-            <TextInput
-              style={[styles.customerPhoneInput, { color: isDark ? '#FFFFFF' : '#111827', borderTopColor: isDark ? '#374151' : '#E5E7EB' }]}
-              placeholder="Job site address"
-              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-              value={jobAddress}
-              onChangeText={setJobAddress}
-            />
+            <View style={[styles.addressContainer, { borderTopWidth: 1, borderTopColor: isDark ? '#374151' : '#E5E7EB' }]}>
+              <AddressAutocomplete
+                value={jobAddress}
+                onChangeText={setJobAddress}
+                placeholder="Job site address"
+                inputStyle={styles.addressInputInline}
+              />
+            </View>
             <TextInput
               style={[styles.jobDescriptionInput, { color: isDark ? '#FFFFFF' : '#111827', borderTopColor: isDark ? '#374151' : '#E5E7EB' }]}
               placeholder="Job description"
@@ -1108,63 +1103,28 @@ export default function NewQuoteScreen() {
 
           {/* Photo Attachments */}
           <View style={[styles.sectionCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-                Photos
-              </Text>
-              <Text style={[styles.sectionSubtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                {attachments.length + pendingPhotos.length} attached
-              </Text>
-            </View>
-
-            {/* Existing and pending photos grid */}
-            {(attachments.length > 0 || pendingPhotos.length > 0) && (
-              <View style={styles.photosGrid}>
-                {attachments.map((attachment) => (
-                  <View key={attachment.id} style={styles.photoContainer}>
-                    <Image source={{ uri: attachment.url }} style={styles.photoThumbnail} />
-                    <TouchableOpacity
-                      style={styles.photoRemoveButton}
-                      onPress={() => handleRemoveAttachment(attachment.id)}>
-                      <FontAwesome name="times-circle" size={20} color="#EF4444" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-                {pendingPhotos.map((photo, index) => (
-                  <View key={`pending-${index}`} style={styles.photoContainer}>
-                    <Image source={{ uri: photo.uri }} style={styles.photoThumbnail} />
-                    <View style={styles.pendingBadge}>
-                      <Text style={styles.pendingBadgeText}>New</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.photoRemoveButton}
-                      onPress={() => handleRemovePendingPhoto(index)}>
-                      <FontAwesome name="times-circle" size={20} color="#EF4444" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            {/* Add photo buttons */}
-            <View style={styles.photoButtons}>
-              <TouchableOpacity
-                style={[styles.photoButton, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
-                onPress={handleTakePhoto}>
-                <FontAwesome name="camera" size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                <Text style={[styles.photoButtonText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  Take Photo
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.photoButton, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
-                onPress={handleAddPhoto}>
-                <FontAwesome name="image" size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                <Text style={[styles.photoButtonText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  From Gallery
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={[styles.sectionTitle, { color: isDark ? '#FFFFFF' : '#111827', marginBottom: 12 }]}>
+              Photos
+            </Text>
+            <PhotoPicker
+              photos={[
+                ...attachments.map(a => ({ id: a.id, uri: a.url, name: a.name, isNew: false })),
+                ...pendingPhotos.map((p, i) => ({ id: `pending-${i}`, uri: p.uri, name: p.name, isNew: true })),
+              ]}
+              onAddPhotos={(newPhotos) => {
+                setPendingPhotos(prev => [...prev, ...newPhotos]);
+              }}
+              onRemovePhoto={(index) => {
+                if (index < attachments.length) {
+                  // Remove from existing attachments
+                  handleRemoveAttachment(attachments[index].id);
+                } else {
+                  // Remove from pending photos
+                  handleRemovePendingPhoto(index - attachments.length);
+                }
+              }}
+              maxPhotos={20}
+            />
           </View>
 
           <View style={[styles.totalsCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
@@ -1614,7 +1574,6 @@ const styles = StyleSheet.create({
   customerSection: {
     marginBottom: 16,
     borderRadius: 12,
-    overflow: 'hidden',
   },
   customerNameInput: {
     fontSize: 18,
@@ -2040,5 +1999,19 @@ const styles = StyleSheet.create({
   photoButtonText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  addressInput: {
+    marginBottom: 12,
+  },
+  addressContainer: {
+    paddingTop: 8,
+    paddingHorizontal: 8,
+    paddingBottom: 4,
+  },
+  addressInputInline: {
+    height: 44,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    paddingHorizontal: 8,
   },
 });

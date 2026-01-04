@@ -18,6 +18,8 @@ BlitzQuotes helps solo and small trade contractors (plumbers, HVAC, electricians
 - **Custom Items** - Add items not in BlitzPrices directly in the quote builder
 - **Labor Tracking** - Add labor hours with your configured rate
 - **Profit Calculator** - See your profit breakdown (not shown to customer)
+- **Photo Attachments** - Attach photos of work area, damage, or materials
+- **Job Site Address** - Track location with smart address autocomplete (Radar API)
 
 ### Quote Management
 - **Quotes Tab** - View pending quotes (Draft → Sent → Viewed)
@@ -38,7 +40,8 @@ BlitzQuotes helps solo and small trade contractors (plumbers, HVAC, electricians
 
 ### Sending & Payments
 - **Share via SMS** - Send quote/invoice link directly via text message
-- **Share Anywhere** - Email, WhatsApp, or copy link
+- **Send via Email** - Opens email app with pre-filled subject and message (requires customer email)
+- **Share Anywhere** - WhatsApp, or copy link
 - **Customer View** - Professional web page at q.blitzquotes.com
 - **PDF Export** - Download professional PDF from customer view page
 - **Approve & Pay Flow** - Customers approve quotes, then pay invoices
@@ -59,9 +62,7 @@ BlitzQuotes helps solo and small trade contractors (plumbers, HVAC, electricians
 ## Planned Features
 
 ### High Priority (Release)
-- [ ] **Photo attachments** - Attach photos of work area, damage, materials
 - [ ] **Push notifications** - Alert when customer views/approves quote
-- [ ] **Email sending** - Alternative to SMS for sending quotes
 - [ ] **Quick templates** - Save common jobs as one-tap templates
 
 ### Medium Priority (Post-Release)
@@ -124,9 +125,10 @@ You profit:                     $149
 |-------|------------|
 | Mobile App | React Native + Expo Router |
 | State | Zustand |
-| Backend/DB | Supabase (Auth + Postgres) |
+| Backend/DB | Supabase (Auth + Postgres + Storage) |
 | Pricing Data | BlitzPrices (crowdsourced) |
 | AI | OpenRouter (Claude Sonnet 4) |
+| Address Autocomplete | Radar API (100k free/month) |
 | Payments | BYOP (Venmo, PayPal, Stripe, etc.) |
 | Customer Pages | Cloudflare Pages |
 
@@ -175,6 +177,7 @@ npx expo start
 EXPO_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 EXPO_PUBLIC_QUOTE_PAGE_URL=https://q.blitzquotes.com
+EXPO_PUBLIC_RADAR_KEY=your-radar-publishable-key
 ```
 
 ## Development

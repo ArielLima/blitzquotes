@@ -22,7 +22,8 @@ import { useStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency, formatPhone, getStatusColor, getStatusLabel, timeAgo } from '@/lib/utils';
 import { getPaymentUrl, getPaymentInstructions, getPaymentButtonLabel } from '@/lib/payments';
-import type { Quote, LineItem } from '@/types';
+import PhotoPicker from '@/components/PhotoPicker';
+import type { Quote, LineItem, QuoteAttachment } from '@/types';
 
 export default function QuoteDetailScreen() {
   const colorScheme = useColorScheme();
@@ -51,6 +52,10 @@ export default function QuoteDetailScreen() {
   const [dueDate, setDueDate] = useState<Date>(getDefaultDates().dueDate);
   const [showWorkDatePicker, setShowWorkDatePicker] = useState(false);
   const [showDueDatePicker, setShowDueDatePicker] = useState(false);
+
+  // Photo state
+  const [pendingPhotos, setPendingPhotos] = useState<{ uri: string; name: string }[]>([]);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
 
   // Format date for display
   const formatDateDisplay = (date: Date | string) => {
@@ -236,6 +241,26 @@ export default function QuoteDetailScreen() {
     }
   };
 
+  const handleSendEmail = async () => {
+    if (!quote.customer_email) {
+      return;
+    }
+
+    const businessName = settings?.business_name || 'Your contractor';
+    const docLabel = getDocLabel();
+    const subject = encodeURIComponent(`${docLabel} from ${businessName} - ${formatCurrency(quote.total)}`);
+    const body = encodeURIComponent(getShareMessage());
+    const emailUrl = `mailto:${quote.customer_email}?subject=${subject}&body=${body}`;
+
+    try {
+      await Linking.openURL(emailUrl);
+      setShowSendModal(false);
+      markAsSent();
+    } catch (error) {
+      Alert.alert('Error', 'Could not open email app');
+    }
+  };
+
   const handleShare = async () => {
     try {
       await Share.share({ message: getShareMessage() });
@@ -284,6 +309,95 @@ export default function QuoteDetailScreen() {
 
   const handleDuplicate = () => {
     router.push(`/quote/new?duplicateId=${id}`);
+  };
+
+  // Photo handlers
+  const handleAddPhotos = async (newPhotos: { uri: string; name: string }[]) => {
+    setPendingPhotos(prev => [...prev, ...newPhotos]);
+
+    // Auto-upload immediately
+    setUploadingPhotos(true);
+    try {
+      const uploaded: QuoteAttachment[] = [];
+
+      for (const photo of newPhotos) {
+        const fileExt = photo.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const fileName = `${quote.user_id}/${quote.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
+
+        // Fetch and convert to ArrayBuffer
+        const response = await fetch(photo.uri);
+        const blob = await response.blob();
+        const arrayBuffer = await new Response(blob).arrayBuffer();
+
+        // Upload to Supabase Storage
+        const { error: uploadError } = await supabase.storage
+          .from('quote-attachments')
+          .upload(fileName, arrayBuffer, {
+            contentType: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
+          });
+
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          continue;
+        }
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('quote-attachments')
+          .getPublicUrl(fileName);
+
+        uploaded.push({
+          id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          url: publicUrl,
+          name: photo.name,
+          size: blob.size,
+          type: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
+          uploaded_at: new Date().toISOString(),
+        });
+      }
+
+      if (uploaded.length > 0) {
+        // Update quote with new attachments
+        const newAttachments = [...(quote.attachments || []), ...uploaded];
+        const { error } = await supabase
+          .from('quotes')
+          .update({ attachments: newAttachments })
+          .eq('id', quote.id);
+
+        if (error) throw error;
+        updateQuote(quote.id, { attachments: newAttachments });
+      }
+
+      // Clear pending photos
+      setPendingPhotos([]);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to upload photos');
+    } finally {
+      setUploadingPhotos(false);
+    }
+  };
+
+  const handleRemovePhoto = async (index: number) => {
+    const attachments = quote.attachments || [];
+    if (index >= attachments.length) {
+      // Remove from pending
+      setPendingPhotos(prev => prev.filter((_, i) => i !== index - attachments.length));
+      return;
+    }
+
+    // Remove from saved attachments
+    const newAttachments = attachments.filter((_, i) => i !== index);
+    try {
+      const { error } = await supabase
+        .from('quotes')
+        .update({ attachments: newAttachments })
+        .eq('id', quote.id);
+
+      if (error) throw error;
+      updateQuote(quote.id, { attachments: newAttachments });
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to remove photo');
+    }
   };
 
   const toggleItemSelection = (index: number) => {
@@ -502,23 +616,23 @@ export default function QuoteDetailScreen() {
           )}
 
           {/* Photos */}
-          {quote.attachments && quote.attachments.length > 0 && (
-            <>
-              <Text style={[styles.sectionHeader, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                PHOTOS ({quote.attachments.length})
+          <View style={[styles.photoSection, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+            <View style={styles.photoSectionHeader}>
+              <Text style={[styles.photoSectionTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                Photos
               </Text>
-              <View style={styles.photosGrid}>
-                {quote.attachments.map((attachment) => (
-                  <TouchableOpacity
-                    key={attachment.id}
-                    style={styles.photoContainer}
-                    onPress={() => Linking.openURL(attachment.url)}>
-                    <Image source={{ uri: attachment.url }} style={styles.photoThumbnail} />
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </>
-          )}
+              {uploadingPhotos && <ActivityIndicator size="small" color="#3B82F6" />}
+            </View>
+            <PhotoPicker
+              photos={[
+                ...(quote.attachments || []).map(a => ({ id: a.id, uri: a.url, name: a.name, isNew: false })),
+                ...pendingPhotos.map((p, i) => ({ id: `pending-${i}`, uri: p.uri, name: p.name, isNew: true })),
+              ]}
+              onAddPhotos={handleAddPhotos}
+              onRemovePhoto={handleRemovePhoto}
+              maxPhotos={20}
+            />
+          </View>
         </ScrollView>
 
         {/* Action Buttons */}
@@ -648,6 +762,7 @@ export default function QuoteDetailScreen() {
             <Text style={[styles.sendModalSubtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
               Send to {quote.customer_name}
               {quote.customer_phone ? ` • ${formatPhone(quote.customer_phone)}` : ''}
+              {quote.customer_email ? ` • ${quote.customer_email}` : ''}
             </Text>
 
             <View style={styles.sendOptions}>
@@ -663,6 +778,31 @@ export default function QuoteDetailScreen() {
                   </Text>
                   <Text style={[styles.sendOptionDesc, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
                     {quote.customer_phone ? `Open SMS with ${getDocLabel().toLowerCase()} link` : 'No phone number'}
+                  </Text>
+                </View>
+                <FontAwesome name="chevron-right" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.sendOption,
+                  { backgroundColor: isDark ? '#374151' : '#F3F4F6' },
+                  !quote.customer_email && styles.sendOptionDisabled,
+                ]}
+                onPress={handleSendEmail}
+                disabled={!quote.customer_email}>
+                <View style={[styles.sendOptionIcon, { backgroundColor: quote.customer_email ? '#EF4444' : '#9CA3AF' }]}>
+                  <FontAwesome name="envelope" size={20} color="#FFFFFF" />
+                </View>
+                <View style={styles.sendOptionText}>
+                  <Text style={[
+                    styles.sendOptionTitle,
+                    { color: quote.customer_email ? (isDark ? '#FFFFFF' : '#111827') : (isDark ? '#6B7280' : '#9CA3AF') }
+                  ]}>
+                    Email
+                  </Text>
+                  <Text style={[styles.sendOptionDesc, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                    {quote.customer_email || 'No email address'}
                   </Text>
                 </View>
                 <FontAwesome name="chevron-right" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
@@ -1306,6 +1446,9 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 12,
   },
+  sendOptionDisabled: {
+    opacity: 0.5,
+  },
   sendOptionIcon: {
     width: 44,
     height: 44,
@@ -1426,6 +1569,21 @@ const styles = StyleSheet.create({
   invoiceModalConfirmText: {
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  photoSection: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  photoSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  photoSectionTitle: {
+    fontSize: 17,
     fontWeight: '600',
   },
   photosGrid: {
