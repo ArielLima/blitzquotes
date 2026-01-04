@@ -103,6 +103,9 @@ export interface UserSettings {
   // Community
   contribute_to_blitzprices: boolean;  // default true
 
+  // Push notifications
+  push_token?: string;  // Expo Push Token
+
   created_at: string;
   updated_at: string;
 }

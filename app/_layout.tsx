@@ -11,6 +11,11 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { useStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { colors } from '@/lib/colors';
+import {
+  registerForPushNotifications,
+  setupNotificationListeners,
+  clearPushToken,
+} from '@/lib/notifications';
 
 export {
   ErrorBoundary,
@@ -58,6 +63,10 @@ function RootLayoutNav() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_OUT') {
+          // Clear push token on sign out
+          if (user?.id) {
+            clearPushToken(user.id);
+          }
           setUser(null);
         } else if (session?.user) {
           setUser(session.user);
@@ -67,6 +76,19 @@ function RootLayoutNav() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Set up push notifications when user is authenticated and onboarded
+  useEffect(() => {
+    if (!user || !isOnboarded) return;
+
+    // Register for push notifications
+    registerForPushNotifications(user.id);
+
+    // Set up notification tap handlers
+    const cleanup = setupNotificationListeners();
+
+    return cleanup;
+  }, [user, isOnboarded]);
 
   // Handle navigation based on auth state
   useEffect(() => {

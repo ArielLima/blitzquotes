@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,6 +11,52 @@ const corsHeaders = {
 };
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+
+// Format currency for notifications
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(amount);
+}
+
+// Send push notification via Expo Push API
+async function sendPushNotification(
+  pushToken: string,
+  title: string,
+  body: string,
+  data: Record<string, any>
+): Promise<void> {
+  if (!pushToken || !pushToken.startsWith('ExponentPushToken')) {
+    return;
+  }
+
+  try {
+    const response = await fetch(EXPO_PUSH_URL, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to: pushToken,
+        title,
+        body,
+        data,
+        sound: 'default',
+        badge: 1,
+        priority: 'high',
+      }),
+    });
+
+    const result = await response.json();
+    if (result.data?.[0]?.status !== 'ok') {
+      console.error('Push notification failed:', result);
+    }
+  } catch (error) {
+    console.error('Error sending push notification:', error);
+  }
+}
 
 interface PaymentConfig {
   label: string;
@@ -80,6 +127,13 @@ serve(async (req) => {
   if (req.method === 'POST') {
     const body = await req.json();
     if (body.action === 'approve') {
+      // Get quote details for notification
+      const { data: quoteData } = await supabase
+        .from('quotes')
+        .select('user_id, customer_name, total')
+        .eq('id', quoteId)
+        .single();
+
       const { error } = await supabase
         .from('quotes')
         .update({ status: 'approved', approved_at: new Date().toISOString() })
@@ -91,6 +145,24 @@ serve(async (req) => {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+      }
+
+      // Send push notification for approval
+      if (quoteData) {
+        const { data: ownerSettings } = await supabase
+          .from('user_settings')
+          .select('push_token')
+          .eq('user_id', quoteData.user_id)
+          .single();
+
+        if (ownerSettings?.push_token) {
+          await sendPushNotification(
+            ownerSettings.push_token,
+            'Quote Approved!',
+            `${quoteData.customer_name} approved your quote for ${formatCurrency(quoteData.total)}`,
+            { quoteId, type: 'quote_approved' }
+          );
+        }
       }
 
       return new Response(JSON.stringify({ success: true }), {
@@ -121,12 +193,22 @@ serve(async (req) => {
     .eq('user_id', quote.user_id)
     .single();
 
-  // Mark as viewed if not already
+  // Mark as viewed if not already and send notification
   if (quote.status === 'sent') {
     await supabase
       .from('quotes')
       .update({ status: 'viewed', viewed_at: new Date().toISOString() })
       .eq('id', quoteId);
+
+    // Send push notification for view
+    if (settings?.push_token) {
+      await sendPushNotification(
+        settings.push_token,
+        'Quote Viewed',
+        `${quote.customer_name} viewed your quote for ${formatCurrency(quote.total)}`,
+        { quoteId, type: 'quote_viewed' }
+      );
+    }
   }
 
   // Build payment URL
