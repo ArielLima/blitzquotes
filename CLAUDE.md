@@ -562,25 +562,29 @@ Settings
 ```
 blitzquotes/
 ├── app/                      # Expo Router pages
-│   ├── (auth)/
-│   ├── (tabs)/
-│   ├── onboarding/
-│   ├── quote/
-│   └── pricebook/
-├── blitzprices/              # BlitzPrices spec and integration
-│   └── CLAUDE.md             # Full BlitzPrices documentation
-├── components/
+│   ├── (auth)/              # Login, register, forgot password
+│   ├── (tabs)/              # Main tabs (quotes, jobs, settings)
+│   ├── onboarding/          # First-time setup flow
+│   └── quote/               # Quote creation, viewing, editing
+├── blitzprices/             # BlitzPrices spec and integration
+│   └── CLAUDE.md            # Full BlitzPrices documentation
+├── components/              # Shared React components
 ├── lib/
-│   ├── supabase.ts
-│   ├── blitzprices.ts        # BlitzPrices API client
-│   ├── store.ts
-│   └── utils.ts
+│   ├── supabase.ts          # Supabase client
+│   ├── blitzprices.ts       # BlitzPrices API client
+│   ├── store.ts             # Zustand store
+│   └── utils.ts             # Helpers (formatting, etc.)
 ├── supabase/
-│   └── functions/
-│       ├── ai/               # AI reasoning (minimal)
-│       └── blitzprices/      # BlitzPrices search/submit
+│   ├── functions/
+│   │   ├── ai/              # AI quote generation (with tracing)
+│   │   ├── blitzprices/     # BlitzPrices search/submit
+│   │   └── quote-view/      # Customer quote API
+│   └── migrations/          # Database migrations
+├── tools/
+│   └── trace-viewer/        # Debug AI traces (React + Vite)
+├── scrapers/                # BlitzPrices data scrapers
 ├── types/
-├── CLAUDE.md                 # This file
+├── CLAUDE.md                # This file
 └── package.json
 ```
 
@@ -682,6 +686,14 @@ eas submit            # Submit to stores
   - Opens native email app with pre-filled subject and body
   - Shows customer email in send modal
   - Grayed out if no email address saved
+- [x] **AI Tracing System** - Debug AI quote generation step-by-step
+  - Tracer class logs each step with input/output/duration
+  - quote_traces table in Supabase with source filtering
+  - Trace viewer React app (tools/trace-viewer)
+  - Copy traces as JSON for debugging
+- [x] **Improved JSON Parsing** - Balanced bracket extraction for AI responses
+  - Handles AI adding comments or extra text
+  - Raw response included in errors for debugging
 
 ### High Priority (Release)
 - [ ] **Push notifications** - Alert when customer views/approves quote

@@ -138,7 +138,7 @@ You profit:                     $149
 blitzquotes/
 ├── app/                    # Expo Router pages
 │   ├── (auth)/            # Login, register
-│   ├── (tabs)/            # Main app tabs (quotes, pricebook, settings)
+│   ├── (tabs)/            # Main app tabs (quotes, jobs, settings)
 │   ├── onboarding/        # First-time setup
 │   └── quote/             # Quote creation/viewing
 ├── components/            # Shared React components
@@ -148,10 +148,13 @@ blitzquotes/
 │   ├── store.ts          # Zustand store
 │   └── utils.ts          # Helpers
 ├── supabase/
-│   └── functions/        # Edge functions
-│       ├── ai/           # AI quote generation
-│       ├── blitzprices/  # Price search/submit
-│       └── quote-view/   # Customer quote API
+│   ├── functions/        # Edge functions
+│   │   ├── ai/           # AI quote generation (with tracing)
+│   │   ├── blitzprices/  # Price search/submit
+│   │   └── quote-view/   # Customer quote API
+│   └── migrations/       # Database migrations
+├── tools/
+│   └── trace-viewer/     # Debug AI quote generation (React + Vite)
 ├── scrapers/             # BlitzPrices data scrapers (Puppeteer)
 └── blitzprices/          # BlitzPrices specification
 ```
@@ -198,12 +201,30 @@ supabase functions deploy blitzprices
 supabase functions deploy quote-view
 ```
 
+## Development Tools
+
+### Trace Viewer
+Debug AI quote generation step-by-step:
+
+```bash
+cd tools/trace-viewer
+npm install
+npm run dev
+# Opens at http://localhost:5173
+```
+
+Features:
+- View all AI traces with date/time filtering
+- Filter by source (generate_quote, etc.)
+- See input/output for each step
+- Copy trace as JSON for debugging
+
 ## Documentation
 
 - [CLAUDE.md](./CLAUDE.md) - Full project specification
 - [blitzprices/CLAUDE.md](./blitzprices/CLAUDE.md) - BlitzPrices database spec
 - [scrapers/CLAUDE.md](./scrapers/CLAUDE.md) - Web scraper documentation
-- [supabase/functions/README.md](./supabase/functions/README.md) - Edge function API docs
+- [tools/trace-viewer/README.md](./tools/trace-viewer/README.md) - Trace viewer docs
 
 ## License
 
