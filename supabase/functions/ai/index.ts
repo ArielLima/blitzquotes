@@ -43,6 +43,7 @@ class Tracer {
   private traceId: string;
   private source: string;
   private stepNumber: number = 0;
+  private pendingTraces: any[] = [];
 
   constructor(source: string) {
     this.traceId = crypto.randomUUID();
@@ -68,8 +69,8 @@ class Tracer {
     } finally {
       const duration = Date.now() - startTime;
 
-      // Log to database (don't await, fire and forget)
-      supabase.from('quote_traces').insert({
+      // Queue trace for batch insert
+      this.pendingTraces.push({
         trace_id: this.traceId,
         source: this.source,
         step,
@@ -78,9 +79,20 @@ class Tracer {
         input: this.sanitize(input),
         output: this.sanitize(output),
         error,
-      }).then(({ error: dbError }) => {
-        if (dbError) console.error('Trace log failed:', dbError.message);
       });
+    }
+  }
+
+  // Flush all pending traces to database
+  async flush(): Promise<void> {
+    if (this.pendingTraces.length === 0) return;
+
+    const { error } = await supabase
+      .from('quote_traces')
+      .insert(this.pendingTraces);
+
+    if (error) {
+      console.error('Trace flush failed:', error.message);
     }
   }
 
@@ -322,6 +334,8 @@ async function generateQuote(
 ) {
   const tracer = new Tracer('generate_quote');
   console.log('trace_id:', tracer.getTraceId());
+
+  try {
   const region = settings.state || 'US';
 
   interface ExtractedMaterial {
@@ -522,6 +536,11 @@ RULES:
   );
 
   return finalResult;
+
+  } finally {
+    // Always flush traces, even on error
+    await tracer.flush();
+  }
 }
 
 async function generatePricebook(trade: string, zipCode?: string) {
