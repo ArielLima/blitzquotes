@@ -892,8 +892,8 @@ export default function QuoteDetailScreen() {
                   </Text>
                 </TouchableOpacity>
                 {showWorkDatePicker && Platform.OS === 'ios' && (
-                  <View style={styles.datePickerContainer}>
-                    <View style={styles.datePickerHeader}>
+                  <View style={[styles.datePickerContainer, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
+                    <View style={[styles.datePickerHeader, { borderBottomColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
                       <TouchableOpacity onPress={() => setShowWorkDatePicker(false)}>
                         <Text style={styles.datePickerDone}>Done</Text>
                       </TouchableOpacity>
@@ -905,6 +905,7 @@ export default function QuoteDetailScreen() {
                       onChange={(event, date) => {
                         if (date) setWorkDate(date);
                       }}
+                      themeVariant={isDark ? 'dark' : 'light'}
                     />
                   </View>
                 )}
@@ -937,14 +938,15 @@ export default function QuoteDetailScreen() {
                   </Text>
                 </TouchableOpacity>
                 {showDueDatePicker && Platform.OS === 'ios' && (
-                  <View style={styles.datePickerContainer}>
-                    <View style={styles.datePickerHeader}>
+                  <View style={[styles.datePickerContainer, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
+                    <View style={[styles.datePickerHeader, { borderBottomColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
                       <TouchableOpacity onPress={() => setShowDueDatePicker(false)}>
                         <Text style={styles.datePickerDone}>Done</Text>
                       </TouchableOpacity>
                     </View>
                     <DateTimePicker
                       value={dueDate}
+                      themeVariant={isDark ? 'dark' : 'light'}
                       mode="date"
                       display="spinner"
                       onChange={(event, date) => {
@@ -1524,7 +1526,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   datePickerContainer: {
-    backgroundColor: '#F3F4F6',
     borderRadius: 12,
     marginTop: 8,
     overflow: 'hidden',
@@ -1535,7 +1536,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   datePickerDone: {
     fontSize: 16,
@@ -1574,6 +1574,7 @@ const styles = StyleSheet.create({
   photoSection: {
     padding: 16,
     borderRadius: 12,
+    marginTop: 16,
     marginBottom: 16,
   },
   photoSectionHeader: {
