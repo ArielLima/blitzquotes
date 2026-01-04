@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import * as ImagePicker from 'expo-image-picker';
+import { colors } from '@/lib/colors';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_SIZE = (SCREEN_WIDTH - 64) / 4; // 4 photos per row with padding
@@ -136,7 +137,7 @@ export default function PhotoPicker({
               onPress={() => handleRemovePhoto(index)}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
-              <FontAwesome name="times" size={14} color="#FFFFFF" />
+              <FontAwesome name="times" size={14} color={colors.text.inverse} />
             </TouchableOpacity>
           </TouchableOpacity>
         ))}
@@ -144,7 +145,7 @@ export default function PhotoPicker({
         {/* Add Photo Button */}
         {canAddMore && (
           <TouchableOpacity
-            style={[styles.addButton, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+            style={[styles.addButton, { backgroundColor: isDark ? colors.gray[700] : colors.gray[100] }]}
             onPress={() => {
               Alert.alert(
                 'Add Photo',
@@ -158,8 +159,8 @@ export default function PhotoPicker({
             }}
             activeOpacity={0.7}
           >
-            <FontAwesome name="plus" size={24} color={isDark ? '#9CA3AF' : '#6B7280'} />
-            <Text style={[styles.addButtonText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            <FontAwesome name="plus" size={24} color={isDark ? colors.gray[400] : colors.gray[500]} />
+            <Text style={[styles.addButtonText, { color: isDark ? colors.gray[400] : colors.gray[500] }]}>
               Add
             </Text>
           </TouchableOpacity>
@@ -168,7 +169,7 @@ export default function PhotoPicker({
 
       {/* Photo count */}
       {photos.length > 0 && (
-        <Text style={[styles.countText, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+        <Text style={[styles.countText, { color: isDark ? colors.gray[500] : colors.gray[400] }]}>
           {photos.length} of {maxPhotos} photos
         </Text>
       )}
@@ -186,7 +187,7 @@ export default function PhotoPicker({
             style={styles.viewerClose}
             onPress={() => setViewingPhoto(null)}
           >
-            <FontAwesome name="times" size={24} color="#FFFFFF" />
+            <FontAwesome name="times" size={24} color={colors.text.inverse} />
           </TouchableOpacity>
           {viewingPhoto && (
             <Image
@@ -218,13 +219,13 @@ const styles = StyleSheet.create({
   photo: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.gray[200],
   },
   newBadge: {
     position: 'absolute',
     bottom: 4,
     left: 4,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary.blue,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -232,13 +233,13 @@ const styles = StyleSheet.create({
   newBadgeText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.text.inverse,
   },
   removeButton: {
     position: 'absolute',
     top: 4,
     right: 4,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: colors.special.overlay,
     borderRadius: 12,
     width: 24,
     height: 24,
@@ -253,7 +254,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: '#9CA3AF',
+    borderColor: colors.gray[400],
     gap: 4,
   },
   addButtonText: {
@@ -267,7 +268,7 @@ const styles = StyleSheet.create({
   },
   viewerOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    backgroundColor: colors.special.overlayDark,
     justifyContent: 'center',
     alignItems: 'center',
   },

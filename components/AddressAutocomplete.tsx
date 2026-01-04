@@ -16,6 +16,7 @@ import {
   Platform,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { colors } from '@/lib/colors';
 
 const RADAR_API_KEY = process.env.EXPO_PUBLIC_RADAR_KEY;
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -152,8 +153,8 @@ export default function AddressAutocomplete({
           style={[
             styles.inputWrapper,
             {
-              backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-              borderColor: isDark ? '#374151' : '#E5E7EB',
+              backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary,
+              borderColor: isDark ? colors.border.dark : colors.border.light,
             },
             inputStyle,
           ]}
@@ -161,13 +162,13 @@ export default function AddressAutocomplete({
           <FontAwesome
             name="map-marker"
             size={16}
-            color={isDark ? '#6B7280' : '#9CA3AF'}
+            color={isDark ? colors.text.placeholderDark : colors.text.placeholder}
             style={styles.icon}
           />
           <Text
             style={[
               styles.displayText,
-              { color: value ? (isDark ? '#FFFFFF' : '#111827') : (isDark ? '#6B7280' : '#9CA3AF') },
+              { color: value ? (isDark ? colors.text.primaryDark : colors.text.primary) : (isDark ? colors.text.placeholderDark : colors.text.placeholder) },
             ]}
             numberOfLines={1}
           >
@@ -184,15 +185,15 @@ export default function AddressAutocomplete({
         onRequestClose={handleCloseModal}
       >
         <KeyboardAvoidingView
-          style={[styles.modalContainer, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}
+          style={[styles.modalContainer, { backgroundColor: isDark ? colors.background.primaryDark : colors.background.primary }]}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           {/* Header */}
-          <View style={[styles.modalHeader, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+          <View style={[styles.modalHeader, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
             <TouchableOpacity onPress={handleCloseModal}>
               <Text style={styles.modalCancel}>Cancel</Text>
             </TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+            <Text style={[styles.modalTitle, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
               Job Site Address
             </Text>
             <TouchableOpacity onPress={handleCloseModal}>
@@ -201,20 +202,20 @@ export default function AddressAutocomplete({
           </View>
 
           {/* Search input */}
-          <View style={[styles.searchContainer, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-            <FontAwesome name="search" size={16} color={isDark ? '#6B7280' : '#9CA3AF'} />
+          <View style={[styles.searchContainer, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
+            <FontAwesome name="search" size={16} color={isDark ? colors.text.placeholderDark : colors.text.placeholder} />
             <TextInput
               ref={inputRef}
-              style={[styles.searchInput, { color: isDark ? '#FFFFFF' : '#111827' }]}
+              style={[styles.searchInput, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}
               placeholder="Search address..."
-              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              placeholderTextColor={isDark ? colors.text.placeholderDark : colors.text.placeholder}
               value={searchText}
               onChangeText={handleTextChange}
               autoCorrect={false}
               autoCapitalize="words"
               autoFocus
             />
-            {loading && <ActivityIndicator size="small" color="#3B82F6" />}
+            {loading && <ActivityIndicator size="small" color={colors.primary.blue} />}
             {searchText.length > 0 && !loading && (
               <TouchableOpacity
                 onPress={() => {
@@ -223,7 +224,7 @@ export default function AddressAutocomplete({
                 }}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <FontAwesome name="times-circle" size={16} color={isDark ? '#6B7280' : '#9CA3AF'} />
+                <FontAwesome name="times-circle" size={16} color={isDark ? colors.text.placeholderDark : colors.text.placeholder} />
               </TouchableOpacity>
             )}
           </View>
@@ -237,21 +238,21 @@ export default function AddressAutocomplete({
             ListEmptyComponent={
               searchText.length >= 3 && !loading ? (
                 <View style={styles.emptyState}>
-                  <FontAwesome name="map-marker" size={32} color={isDark ? '#4B5563' : '#D1D5DB'} />
-                  <Text style={[styles.emptyText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  <FontAwesome name="map-marker" size={32} color={isDark ? colors.gray[600] : colors.gray[300]} />
+                  <Text style={[styles.emptyText, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                     No addresses found
                   </Text>
-                  <Text style={[styles.emptyHint, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+                  <Text style={[styles.emptyHint, { color: isDark ? colors.text.placeholderDark : colors.text.placeholder }]}>
                     Try a different search or tap Done to use entered text
                   </Text>
                 </View>
               ) : searchText.length < 3 ? (
                 <View style={styles.emptyState}>
-                  <FontAwesome name="map-marker" size={32} color={isDark ? '#4B5563' : '#D1D5DB'} />
-                  <Text style={[styles.emptyText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  <FontAwesome name="map-marker" size={32} color={isDark ? colors.gray[600] : colors.gray[300]} />
+                  <Text style={[styles.emptyText, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                     Enter an address
                   </Text>
-                  <Text style={[styles.emptyHint, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+                  <Text style={[styles.emptyHint, { color: isDark ? colors.text.placeholderDark : colors.text.placeholder }]}>
                     Start typing to search for addresses
                   </Text>
                 </View>
@@ -259,32 +260,32 @@ export default function AddressAutocomplete({
             }
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={[styles.suggestionItem, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
+                style={[styles.suggestionItem, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}
                 onPress={() => handleSelectSuggestion(item)}
               >
                 <FontAwesome
                   name="map-marker"
                   size={16}
-                  color="#3B82F6"
+                  color={colors.primary.blue}
                   style={styles.suggestionIcon}
                 />
                 <View style={styles.suggestionText}>
                   <Text
-                    style={[styles.suggestionPrimary, { color: isDark ? '#FFFFFF' : '#111827' }]}
+                    style={[styles.suggestionPrimary, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}
                     numberOfLines={1}
                   >
                     {item.addressLabel || item.placeLabel || item.formattedAddress}
                   </Text>
                   {item.city && (
                     <Text
-                      style={[styles.suggestionSecondary, { color: isDark ? '#9CA3AF' : '#6B7280' }]}
+                      style={[styles.suggestionSecondary, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}
                       numberOfLines={1}
                     >
                       {[item.city, item.stateCode, item.postalCode].filter(Boolean).join(', ')}
                     </Text>
                   )}
                 </View>
-                <FontAwesome name="chevron-right" size={12} color={isDark ? '#6B7280' : '#9CA3AF'} />
+                <FontAwesome name="chevron-right" size={12} color={isDark ? colors.text.placeholderDark : colors.text.placeholder} />
               </TouchableOpacity>
             )}
           />
@@ -321,11 +322,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border.light,
   },
   modalCancel: {
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.text.secondary,
     width: 60,
   },
   modalTitle: {
@@ -334,7 +335,7 @@ const styles = StyleSheet.create({
   },
   modalDone: {
     fontSize: 16,
-    color: '#3B82F6',
+    color: colors.primary.blue,
     fontWeight: '600',
     width: 60,
     textAlign: 'right',

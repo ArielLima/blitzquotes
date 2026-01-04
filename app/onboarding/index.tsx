@@ -10,6 +10,7 @@ import {
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { colors } from '@/lib/colors';
 
 const { width } = Dimensions.get('window');
 
@@ -56,15 +57,15 @@ export default function OnboardingTradeScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
+    <View style={[styles.container, { backgroundColor: isDark ? colors.background.primaryDark : colors.background.primary }]}>
       <View style={styles.header}>
-        <Text style={[styles.step, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+        <Text style={[styles.step, { color: isDark ? colors.text.secondary : colors.gray[400] }]}>
           Step 1 of 2
         </Text>
-        <Text style={[styles.title, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+        <Text style={[styles.title, { color: isDark ? colors.text.primaryDark : colors.gray[950] }]}>
           What's your trade?
         </Text>
-        <Text style={[styles.subtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+        <Text style={[styles.subtitle, { color: isDark ? colors.gray[400] : colors.text.secondary }]}>
           We'll customize your experience based on your specialty
         </Text>
       </View>
@@ -79,30 +80,30 @@ export default function OnboardingTradeScreen() {
                 styles.tradeCard,
                 isSelected && styles.tradeCardSelected,
                 {
-                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                  backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary,
                   borderColor: isSelected ? trade.gradient[0] : 'transparent',
                 },
               ]}
               onPress={() => setSelectedTrade(trade.id)}
               activeOpacity={0.7}>
               <LinearGradient
-                colors={isSelected ? trade.gradient : [isDark ? '#374151' : '#F3F4F6', isDark ? '#374151' : '#F3F4F6']}
+                colors={isSelected ? trade.gradient : [isDark ? colors.gray[700] : colors.background.tertiary, isDark ? colors.gray[700] : colors.background.tertiary]}
                 style={styles.iconContainer}>
                 <FontAwesome
                   name={trade.icon as any}
                   size={24}
-                  color={isSelected ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280')}
+                  color={isSelected ? colors.text.inverse : (isDark ? colors.gray[400] : colors.text.secondary)}
                 />
               </LinearGradient>
               <View style={styles.tradeInfo}>
                 <Text style={[
                   styles.tradeLabel,
-                  { color: isDark ? '#FFFFFF' : '#111827' },
+                  { color: isDark ? colors.text.primaryDark : colors.gray[950] },
                   isSelected && { color: trade.gradient[0] }
                 ]}>
                   {trade.label}
                 </Text>
-                <Text style={[styles.tradeDescription, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+                <Text style={[styles.tradeDescription, { color: isDark ? colors.text.secondary : colors.gray[400] }]}>
                   {trade.description}
                 </Text>
               </View>
@@ -123,7 +124,7 @@ export default function OnboardingTradeScreen() {
           onPress={handleContinue}
           disabled={!selectedTrade}>
           <Text style={styles.continueButtonText}>Continue</Text>
-          <FontAwesome name="arrow-right" size={16} color="#FFFFFF" />
+          <FontAwesome name="arrow-right" size={16} color={colors.text.inverse} />
         </TouchableOpacity>
       </View>
     </View>
@@ -201,17 +202,17 @@ const styles = StyleSheet.create({
   continueButton: {
     flexDirection: 'row',
     height: 56,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary.blue,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
   },
   continueButtonDisabled: {
-    backgroundColor: '#93C5FD',
+    backgroundColor: colors.primary.blueLight,
   },
   continueButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.inverse,
     fontSize: 17,
     fontWeight: '600',
   },

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { signUp } from '@/lib/supabase';
+import { colors } from '@/lib/colors';
 
 export default function RegisterScreen() {
   const colorScheme = useColorScheme();
@@ -57,37 +58,37 @@ export default function RegisterScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: isDark ? '#1F2937' : '#F3F4F6' }]}
+      style={[styles.container, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.tertiary }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled">
         <View style={styles.content}>
           <View style={styles.header}>
-            <Text style={[styles.title, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+            <Text style={[styles.title, { color: isDark ? colors.text.primaryDark : colors.gray[950] }]}>
               Create Account
             </Text>
-            <Text style={[styles.subtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            <Text style={[styles.subtitle, { color: isDark ? colors.gray[400] : colors.text.secondary }]}>
               Start quoting in under a minute
             </Text>
           </View>
 
           <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <Text style={[styles.label, { color: isDark ? '#D1D5DB' : '#374151' }]}>
+              <Text style={[styles.label, { color: isDark ? colors.gray[300] : colors.gray[700] }]}>
                 Email
               </Text>
               <TextInput
                 style={[
                   styles.input,
                   {
-                    backgroundColor: isDark ? '#374151' : '#FFFFFF',
-                    color: isDark ? '#FFFFFF' : '#111827',
-                    borderColor: isDark ? '#4B5563' : '#D1D5DB',
+                    backgroundColor: isDark ? colors.gray[700] : colors.background.secondary,
+                    color: isDark ? colors.text.primaryDark : colors.gray[950],
+                    borderColor: isDark ? colors.gray[600] : colors.border.medium,
                   },
                 ]}
                 placeholder="you@example.com"
-                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                placeholderTextColor={isDark ? colors.text.secondary : colors.gray[400]}
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
@@ -97,20 +98,20 @@ export default function RegisterScreen() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={[styles.label, { color: isDark ? '#D1D5DB' : '#374151' }]}>
+              <Text style={[styles.label, { color: isDark ? colors.gray[300] : colors.gray[700] }]}>
                 Password
               </Text>
               <TextInput
                 style={[
                   styles.input,
                   {
-                    backgroundColor: isDark ? '#374151' : '#FFFFFF',
-                    color: isDark ? '#FFFFFF' : '#111827',
-                    borderColor: isDark ? '#4B5563' : '#D1D5DB',
+                    backgroundColor: isDark ? colors.gray[700] : colors.background.secondary,
+                    color: isDark ? colors.text.primaryDark : colors.gray[950],
+                    borderColor: isDark ? colors.gray[600] : colors.border.medium,
                   },
                 ]}
                 placeholder="••••••••"
-                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                placeholderTextColor={isDark ? colors.text.secondary : colors.gray[400]}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
@@ -119,20 +120,20 @@ export default function RegisterScreen() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={[styles.label, { color: isDark ? '#D1D5DB' : '#374151' }]}>
+              <Text style={[styles.label, { color: isDark ? colors.gray[300] : colors.gray[700] }]}>
                 Confirm Password
               </Text>
               <TextInput
                 style={[
                   styles.input,
                   {
-                    backgroundColor: isDark ? '#374151' : '#FFFFFF',
-                    color: isDark ? '#FFFFFF' : '#111827',
-                    borderColor: isDark ? '#4B5563' : '#D1D5DB',
+                    backgroundColor: isDark ? colors.gray[700] : colors.background.secondary,
+                    color: isDark ? colors.text.primaryDark : colors.gray[950],
+                    borderColor: isDark ? colors.gray[600] : colors.border.medium,
                   },
                 ]}
                 placeholder="••••••••"
-                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                placeholderTextColor={isDark ? colors.text.secondary : colors.gray[400]}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry
@@ -145,7 +146,7 @@ export default function RegisterScreen() {
               onPress={handleRegister}
               disabled={loading}>
               {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={colors.text.inverse} />
               ) : (
                 <Text style={styles.buttonText}>Create Account</Text>
               )}
@@ -153,7 +154,7 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.footer}>
-            <Text style={[styles.footerText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            <Text style={[styles.footerText, { color: isDark ? colors.gray[400] : colors.text.secondary }]}>
               Already have an account?{' '}
             </Text>
             <Link href="/(auth)/login" asChild>
@@ -211,7 +212,7 @@ const styles = StyleSheet.create({
   },
   button: {
     height: 48,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary.blue,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: colors.text.inverse,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -236,6 +237,6 @@ const styles = StyleSheet.create({
   link: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#3B82F6',
+    color: colors.primary.blue,
   },
 });

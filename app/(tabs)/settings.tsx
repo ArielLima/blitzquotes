@@ -18,6 +18,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import * as ImagePicker from 'expo-image-picker';
 import { useStore } from '@/lib/store';
 import { signOut, supabase } from '@/lib/supabase';
+import { colors } from '@/lib/colors';
 import { PAYMENT_METHODS } from '@/lib/payments';
 import { getRegions } from '@/lib/blitzprices';
 import { formatPhone } from '@/lib/utils';
@@ -63,30 +64,30 @@ function EditModal({
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.modalOverlay}>
-        <View style={[styles.editModalContent, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-          <Text style={[styles.editModalTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+        <View style={[styles.editModalContent, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
+          <Text style={[styles.editModalTitle, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
             {title}
           </Text>
-          <View style={[styles.editInputWrapper, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
+          <View style={[styles.editInputWrapper, { backgroundColor: isDark ? colors.gray[700] : colors.gray[100] }]}>
             {prefix && (
-              <Text style={[styles.inputAffix, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>{prefix}</Text>
+              <Text style={[styles.inputAffix, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>{prefix}</Text>
             )}
             <TextInput
-              style={[styles.editInput, { color: isDark ? '#FFFFFF' : '#111827' }]}
+              style={[styles.editInput, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}
               value={inputValue}
               onChangeText={setInputValue}
               keyboardType={keyboardType}
               placeholder={placeholder}
-              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              placeholderTextColor={isDark ? colors.text.placeholderDark : colors.text.placeholder}
               autoFocus
             />
             {suffix && (
-              <Text style={[styles.inputAffix, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>{suffix}</Text>
+              <Text style={[styles.inputAffix, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>{suffix}</Text>
             )}
           </View>
           <View style={styles.editModalButtons}>
             <TouchableOpacity style={styles.editModalCancel} onPress={onClose}>
-              <Text style={[styles.editModalCancelText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              <Text style={[styles.editModalCancelText, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                 Cancel
               </Text>
             </TouchableOpacity>
@@ -122,13 +123,13 @@ function PickerModal({
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.modalOverlay}>
-        <View style={[styles.pickerModalContent, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+        <View style={[styles.pickerModalContent, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
           <View style={styles.pickerModalHeader}>
-            <Text style={[styles.pickerModalTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+            <Text style={[styles.pickerModalTitle, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
               {title}
             </Text>
             <TouchableOpacity onPress={onClose}>
-              <FontAwesome name="times" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              <FontAwesome name="times" size={20} color={isDark ? colors.text.secondaryDark : colors.text.secondary} />
             </TouchableOpacity>
           </View>
           <FlatList
@@ -139,17 +140,17 @@ function PickerModal({
               <TouchableOpacity
                 style={[
                   styles.pickerOption,
-                  selected === item.value && { backgroundColor: isDark ? '#374151' : '#F3F4F6' },
+                  selected === item.value && { backgroundColor: isDark ? colors.gray[700] : colors.gray[100] },
                 ]}
                 onPress={() => {
                   onSelect(item.value);
                   onClose();
                 }}>
-                <Text style={[styles.pickerOptionText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                <Text style={[styles.pickerOptionText, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
                   {item.label}
                 </Text>
                 {selected === item.value && (
-                  <FontAwesome name="check" size={16} color="#3B82F6" />
+                  <FontAwesome name="check" size={16} color={colors.primary.blue} />
                 )}
               </TouchableOpacity>
             )}
@@ -182,7 +183,7 @@ function SettingsRow({
     <TouchableOpacity
       style={[
         styles.row,
-        { backgroundColor: isDark ? '#374151' : '#FFFFFF' },
+        { backgroundColor: isDark ? colors.gray[700] : colors.background.secondary },
         isLast && styles.rowLast,
       ]}
       onPress={onPress}
@@ -191,25 +192,27 @@ function SettingsRow({
         <FontAwesome
           name={icon as any}
           size={18}
-          color={iconColor || '#3B82F6'}
+          color={iconColor || colors.primary.blue}
           style={styles.rowIcon}
         />
-        <Text style={[styles.rowLabel, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+        <Text style={[styles.rowLabel, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
           {label}
         </Text>
       </View>
       <View style={styles.rowRight}>
         {value && (
-          <Text style={[styles.rowValue, { color: isDark ? '#9CA3AF' : '#6B7280' }]} numberOfLines={1}>
+          <Text style={[styles.rowValue, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]} numberOfLines={1}>
             {value}
           </Text>
         )}
         {onPress && (
-          <FontAwesome
-            name="chevron-right"
-            size={14}
-            color={isDark ? '#4B5563' : '#D1D5DB'}
-          />
+          <View style={styles.rowChevron}>
+            <FontAwesome
+              name="chevron-right"
+              size={14}
+              color={isDark ? colors.gray[600] : colors.gray[300]}
+            />
+          </View>
         )}
       </View>
     </TouchableOpacity>
@@ -239,17 +242,17 @@ function ToggleRow({
       style={[
         styles.row,
         styles.toggleRow,
-        { backgroundColor: isDark ? '#374151' : '#FFFFFF' },
+        { backgroundColor: isDark ? colors.gray[700] : colors.background.secondary },
         isLast && styles.rowLast,
       ]}>
       <View style={styles.rowLeft}>
-        <FontAwesome name={icon as any} size={18} color="#3B82F6" style={styles.rowIcon} />
+        <FontAwesome name={icon as any} size={18} color={colors.primary.blue} style={styles.rowIcon} />
         <View style={styles.toggleTextContainer}>
-          <Text style={[styles.rowLabel, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+          <Text style={[styles.rowLabel, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
             {label}
           </Text>
           {description && (
-            <Text style={[styles.toggleDescription, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+            <Text style={[styles.toggleDescription, { color: isDark ? colors.text.placeholderDark : colors.text.placeholder }]}>
               {description}
             </Text>
           )}
@@ -258,8 +261,8 @@ function ToggleRow({
       <Switch
         value={value}
         onValueChange={onValueChange}
-        trackColor={{ false: '#767577', true: '#3B82F6' }}
-        thumbColor={value ? '#FFFFFF' : '#f4f3f4'}
+        trackColor={{ false: colors.gray[500], true: colors.primary.blue }}
+        thumbColor={value ? colors.text.inverse : colors.gray[100]}
       />
     </View>
   );
@@ -270,7 +273,7 @@ function SectionHeader({ title }: { title: string }) {
   const isDark = colorScheme === 'dark';
 
   return (
-    <Text style={[styles.sectionHeader, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+    <Text style={[styles.sectionHeader, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
       {title}
     </Text>
   );
@@ -443,28 +446,28 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: isDark ? '#1F2937' : '#F3F4F6' }]}
+      style={[styles.container, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.tertiary }]}
       contentContainerStyle={styles.content}>
 
       {/* Business Header Card */}
-      <View style={[styles.businessCard, { backgroundColor: isDark ? '#374151' : '#FFFFFF' }]}>
+      <View style={[styles.businessCard, { backgroundColor: isDark ? colors.gray[700] : colors.background.secondary }]}>
         <TouchableOpacity
           style={styles.logoContainer}
           onPress={pickAndUploadLogo}
           disabled={uploadingLogo}>
           {uploadingLogo ? (
-            <View style={[styles.logoPlaceholder, { backgroundColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
-              <ActivityIndicator color="#3B82F6" />
+            <View style={[styles.logoPlaceholder, { backgroundColor: isDark ? colors.gray[600] : colors.gray[200] }]}>
+              <ActivityIndicator color={colors.primary.blue} />
             </View>
           ) : settings?.logo_url ? (
             <Image source={{ uri: settings.logo_url }} style={styles.logo} />
           ) : (
-            <View style={[styles.logoPlaceholder, { backgroundColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
-              <FontAwesome name="camera" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+            <View style={[styles.logoPlaceholder, { backgroundColor: isDark ? colors.gray[600] : colors.gray[200] }]}>
+              <FontAwesome name="camera" size={20} color={isDark ? colors.text.secondaryDark : colors.text.secondary} />
             </View>
           )}
           <View style={styles.logoEditBadge}>
-            <FontAwesome name="pencil" size={10} color="#FFFFFF" />
+            <FontAwesome name="pencil" size={10} color={colors.text.inverse} />
           </View>
         </TouchableOpacity>
         <TouchableOpacity
@@ -472,13 +475,13 @@ export default function SettingsScreen() {
           onPress={() => openEditModal('business_name', 'Business Name', settings?.business_name || '')}
           activeOpacity={0.7}>
           <Text
-            style={[styles.businessCardName, { color: isDark ? '#FFFFFF' : '#111827' }]}
+            style={[styles.businessCardName, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}
             numberOfLines={2}
             adjustsFontSizeToFit
             minimumFontScale={0.75}>
             {settings?.business_name || 'Your Business'}
           </Text>
-          <FontAwesome name="pencil" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+          <FontAwesome name="pencil" size={14} color={isDark ? colors.text.placeholderDark : colors.text.placeholder} />
         </TouchableOpacity>
       </View>
 
@@ -533,28 +536,28 @@ export default function SettingsScreen() {
         />
         <SettingsRow
           icon="tag"
-          iconColor="#10B981"
+          iconColor={colors.status.success}
           label="Contractor Discount"
           value={formatPercent(settings?.contractor_discount ?? 0)}
           onPress={() => openEditModal('contractor_discount', 'Contractor Discount (%)', ((settings?.contractor_discount || 0) * 100).toFixed(0), { keyboardType: 'decimal-pad', suffix: '%' })}
         />
         <SettingsRow
           icon="cube"
-          iconColor="#3B82F6"
+          iconColor={colors.primary.blue}
           label="Material Markup"
           value={formatPercent(settings?.material_markup)}
           onPress={() => openEditModal('material_markup', 'Material Markup (%)', ((settings?.material_markup || 0.35) * 100).toFixed(0), { keyboardType: 'decimal-pad', suffix: '%' })}
         />
         <SettingsRow
           icon="wrench"
-          iconColor="#F59E0B"
+          iconColor={colors.status.warning}
           label="Equipment Markup"
           value={settings?.equipment_markup ? formatPercent(settings.equipment_markup) : 'Default'}
           onPress={() => openEditModal('equipment_markup', 'Equipment Markup (%)', settings?.equipment_markup ? (settings.equipment_markup * 100).toFixed(0) : '', { keyboardType: 'decimal-pad', suffix: '%' })}
         />
         <SettingsRow
           icon="file-text-o"
-          iconColor="#8B5CF6"
+          iconColor={colors.special.purple}
           label="Fee Markup"
           value={formatPercent(settings?.fee_markup ?? 0)}
           onPress={() => openEditModal('fee_markup', 'Fee Markup (%)', ((settings?.fee_markup || 0) * 100).toFixed(0), { keyboardType: 'decimal-pad', suffix: '%' })}
@@ -590,9 +593,9 @@ export default function SettingsScreen() {
               onPress={() => openEditModal('payment_link', 'Payment Link', settings?.payment_link || '')}
             />
             {PAYMENT_METHODS[settings.payment_method]?.helpText && (
-              <View style={[styles.helpTextRow, { backgroundColor: isDark ? '#374151' : '#FFFFFF' }]}>
-                <FontAwesome name="info-circle" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
-                <Text style={[styles.helpText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              <View style={[styles.helpTextRow, { backgroundColor: isDark ? colors.gray[700] : colors.background.secondary }]}>
+                <FontAwesome name="info-circle" size={14} color={isDark ? colors.text.placeholderDark : colors.text.placeholder} />
+                <Text style={[styles.helpText, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                   {PAYMENT_METHODS[settings.payment_method].helpText}
                 </Text>
               </View>
@@ -612,17 +615,17 @@ export default function SettingsScreen() {
           style={[
             styles.row,
             styles.rowLast,
-            { backgroundColor: isDark ? '#374151' : '#FFFFFF' },
+            { backgroundColor: isDark ? colors.gray[700] : colors.background.secondary },
           ]}
           onPress={handleSignOut}>
           <View style={styles.rowLeft}>
-            <FontAwesome name="sign-out" size={18} color="#EF4444" style={styles.rowIcon} />
+            <FontAwesome name="sign-out" size={18} color={colors.status.error} style={styles.rowIcon} />
             <Text style={styles.signOutText}>Sign Out</Text>
           </View>
         </TouchableOpacity>
       </View>
 
-      <Text style={[styles.version, { color: isDark ? '#4B5563' : '#9CA3AF' }]}>
+      <Text style={[styles.version, { color: isDark ? colors.gray[600] : colors.gray[400] }]}>
         BlitzQuotes v1.0.0
       </Text>
 
@@ -699,7 +702,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary.blue,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -748,7 +751,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border.light,
   },
   rowLast: {
     borderBottomWidth: 0,
@@ -772,10 +775,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    maxWidth: '50%',
   },
   rowValue: {
     fontSize: 15,
+    textAlign: 'right',
+    flexShrink: 1,
+  },
+  rowChevron: {
+    width: 20,
+    alignItems: 'flex-end',
   },
   toggleTextContainer: {
     flex: 1,
@@ -786,7 +794,7 @@ const styles = StyleSheet.create({
   },
   signOutText: {
     fontSize: 16,
-    color: '#EF4444',
+    color: colors.status.error,
   },
   version: {
     textAlign: 'center',
@@ -840,13 +848,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   editModalSave: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary.blue,
     paddingHorizontal: 24,
     paddingVertical: 10,
     borderRadius: 8,
   },
   editModalSaveText: {
-    color: '#FFFFFF',
+    color: colors.text.inverse,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -866,7 +874,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border.light,
   },
   pickerModalTitle: {
     fontSize: 18,

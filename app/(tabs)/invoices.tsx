@@ -14,6 +14,7 @@ import { Link } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useStore, DATE_RANGE_OPTIONS } from '@/lib/store';
 import { formatCurrency, timeAgo, getStatusColor, getStatusLabel } from '@/lib/utils';
+import { colors } from '@/lib/colors';
 import type { Quote } from '@/types';
 
 type JobFilter = 'all' | 'approved' | 'invoiced' | 'paid';
@@ -26,15 +27,15 @@ function FilterChip({ label, active, onPress, count }: { label: string; active: 
     <TouchableOpacity
       style={[
         styles.filterChip,
-        { backgroundColor: active ? '#3B82F6' : (isDark ? '#374151' : '#E5E7EB') },
+        { backgroundColor: active ? colors.primary.blue : (isDark ? colors.border.dark : colors.border.light) },
       ]}
       onPress={onPress}>
-      <Text style={[styles.filterLabel, { color: active ? '#FFFFFF' : (isDark ? '#D1D5DB' : '#374151') }]}>
+      <Text style={[styles.filterLabel, { color: active ? colors.text.inverse : (isDark ? colors.gray[300] : colors.gray[700]) }]}>
         {label}
       </Text>
       {active && count > 0 && (
         <View style={[styles.filterCount, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-          <Text style={[styles.filterCountText, { color: '#FFFFFF' }]}>
+          <Text style={[styles.filterCountText, { color: colors.text.inverse }]}>
             {count}
           </Text>
         </View>
@@ -48,11 +49,11 @@ function StatCard({ label, value }: { label: string; value: string }) {
   const isDark = colorScheme === 'dark';
 
   return (
-    <View style={[styles.statCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-      <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+    <View style={[styles.statCard, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
+      <Text style={[styles.statLabel, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
         {label}
       </Text>
-      <Text style={[styles.statValue, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+      <Text style={[styles.statValue, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
         {value}
       </Text>
     </View>
@@ -86,12 +87,12 @@ function JobCard({ quote }: { quote: Quote }) {
           style={[
             styles.card,
             {
-              backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+              backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary,
               borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
             },
           ]}>
           <View style={styles.cardHeader}>
-            <Text style={[styles.customerName, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+            <Text style={[styles.customerName, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
               {quote.customer_name}
             </Text>
             <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
@@ -105,23 +106,23 @@ function JobCard({ quote }: { quote: Quote }) {
           </View>
 
           <Text
-            style={[styles.jobDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}
+            style={[styles.jobDescription, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}
             numberOfLines={1}>
             {quote.job_description || 'No description'}
           </Text>
 
           <View style={styles.cardFooter}>
             <View>
-              <Text style={[styles.totalLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              <Text style={[styles.totalLabel, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                 Total
               </Text>
-              <Text style={[styles.total, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+              <Text style={[styles.total, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
                 {formatCurrency(quote.total)}
               </Text>
             </View>
             {quote.status === 'paid' && (
               <View style={styles.profitContainer}>
-                <Text style={[styles.profitLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                <Text style={[styles.profitLabel, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                   Profit
                 </Text>
                 <Text style={styles.profit}>
@@ -129,7 +130,7 @@ function JobCard({ quote }: { quote: Quote }) {
                 </Text>
               </View>
             )}
-            <Text style={[styles.date, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+            <Text style={[styles.date, { color: isDark ? colors.text.placeholderDark : colors.text.placeholder }]}>
               {getRelevantDate()}
             </Text>
           </View>
@@ -160,11 +161,11 @@ function EmptyState({ filter }: { filter: JobFilter }) {
 
   return (
     <View style={styles.emptyState}>
-      <FontAwesome name="briefcase" size={48} color={isDark ? '#4B5563' : '#D1D5DB'} />
-      <Text style={[styles.emptyTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+      <FontAwesome name="briefcase" size={48} color={isDark ? colors.gray[600] : colors.gray[300]} />
+      <Text style={[styles.emptyTitle, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
         {message.title}
       </Text>
-      <Text style={[styles.emptySubtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+      <Text style={[styles.emptySubtitle, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
         {message.subtitle}
       </Text>
     </View>
@@ -242,7 +243,7 @@ export default function InvoicesScreen() {
   }, [allJobs]);
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F3F4F6' }]}>
+    <View style={[styles.container, { backgroundColor: isDark ? colors.background.primaryDark : colors.background.tertiary }]}>
       {/* Stats Cards */}
       <View style={styles.statsContainer}>
         <StatCard
@@ -272,25 +273,25 @@ export default function InvoicesScreen() {
       </ScrollView>
 
       {/* Search Bar */}
-      <View style={[styles.searchContainer, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-        <FontAwesome name="search" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+      <View style={[styles.searchContainer, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
+        <FontAwesome name="search" size={14} color={isDark ? colors.text.placeholderDark : colors.text.placeholder} />
         <TextInput
-          style={[styles.searchInput, { color: isDark ? '#FFFFFF' : '#111827' }]}
+          style={[styles.searchInput, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}
           placeholder="Search by name or job..."
-          placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+          placeholderTextColor={isDark ? colors.text.placeholderDark : colors.text.placeholder}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <FontAwesome name="times-circle" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+            <FontAwesome name="times-circle" size={14} color={isDark ? colors.text.placeholderDark : colors.text.placeholder} />
           </TouchableOpacity>
         )}
-        <View style={[styles.searchDivider, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]} />
+        <View style={[styles.searchDivider, { backgroundColor: isDark ? colors.border.dark : colors.border.light }]} />
         <TouchableOpacity
           style={styles.dateFilterButton}
           onPress={() => setShowDatePicker(true)}>
-          <FontAwesome name="calendar" size={14} color="#3B82F6" />
+          <FontAwesome name="calendar" size={14} color={colors.primary.blue} />
           <Text style={styles.dateFilterText}>
             {DATE_RANGE_OPTIONS.find(o => o.value === dateRange)?.label.replace(' Days', 'd').replace(' Time', '')}
           </Text>
@@ -321,8 +322,8 @@ export default function InvoicesScreen() {
           style={styles.modalOverlay}
           activeOpacity={1}
           onPress={() => setShowDatePicker(false)}>
-          <View style={[styles.datePickerModal, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-            <Text style={[styles.datePickerTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+          <View style={[styles.datePickerModal, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
+            <Text style={[styles.datePickerTitle, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
               Show jobs from
             </Text>
             {DATE_RANGE_OPTIONS.map((option) => (
@@ -338,13 +339,13 @@ export default function InvoicesScreen() {
                 }}>
                 <Text style={[
                   styles.datePickerOptionText,
-                  { color: isDark ? '#FFFFFF' : '#111827' },
+                  { color: isDark ? colors.text.primaryDark : colors.text.primary },
                   dateRange === option.value && styles.datePickerOptionTextActive,
                 ]}>
                   {option.label}
                 </Text>
                 {dateRange === option.value && (
-                  <FontAwesome name="check" size={16} color="#3B82F6" />
+                  <FontAwesome name="check" size={16} color={colors.primary.blue} />
                 )}
               </TouchableOpacity>
             ))}
@@ -374,8 +375,7 @@ const styles = StyleSheet.create({
   filterRow: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    paddingTop: 16,
-    marginBottom: 8,
+    paddingTop: 12,
     gap: 8,
   },
   filterChip: {
@@ -430,12 +430,13 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: 16,
+    paddingTop: 12,
     paddingBottom: 20,
   },
   card: {
     padding: 16,
     borderRadius: 12,
-    shadowColor: '#000',
+    shadowColor: colors.gray[950],
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
@@ -447,7 +448,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   customerName: {
     fontSize: 16,
@@ -467,7 +468,7 @@ const styles = StyleSheet.create({
   },
   jobDescription: {
     fontSize: 14,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   cardFooter: {
     flexDirection: 'row',
@@ -492,7 +493,7 @@ const styles = StyleSheet.create({
   profit: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#10B981',
+    color: colors.status.success,
   },
   date: {
     fontSize: 12,
@@ -517,7 +518,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 16,
-    marginBottom: 12,
+    marginTop: 12,
     paddingHorizontal: 14,
     height: 44,
     borderRadius: 12,
@@ -541,7 +542,7 @@ const styles = StyleSheet.create({
   dateFilterText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#3B82F6',
+    color: colors.primary.blue,
   },
   modalOverlay: {
     flex: 1,
@@ -554,7 +555,7 @@ const styles = StyleSheet.create({
     maxWidth: 300,
     borderRadius: 16,
     padding: 20,
-    shadowColor: '#000',
+    shadowColor: colors.gray[950],
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
@@ -585,6 +586,6 @@ const styles = StyleSheet.create({
   },
   datePickerOptionTextActive: {
     fontWeight: '600',
-    color: '#3B82F6',
+    color: colors.primary.blue,
   },
 });

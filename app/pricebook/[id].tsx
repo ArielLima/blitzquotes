@@ -18,12 +18,13 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
+import { colors } from '@/lib/colors';
 
 const CATEGORIES = [
-  { id: 'materials', label: 'Materials', icon: 'cube', color: '#3B82F6' },
-  { id: 'labor', label: 'Labor', icon: 'clock-o', color: '#10B981' },
-  { id: 'equipment', label: 'Equipment', icon: 'wrench', color: '#F59E0B' },
-  { id: 'fees', label: 'Fees', icon: 'file-text-o', color: '#8B5CF6' },
+  { id: 'materials', label: 'Materials', icon: 'cube', color: colors.primary.blue },
+  { id: 'labor', label: 'Labor', icon: 'clock-o', color: colors.status.success },
+  { id: 'equipment', label: 'Equipment', icon: 'wrench', color: colors.status.warning },
+  { id: 'fees', label: 'Fees', icon: 'file-text-o', color: colors.special.purple },
 ];
 
 const UNITS = [
@@ -54,13 +55,13 @@ function PickerModal({ visible, onClose, title, options, selected, onSelect, isD
       animationType="fade"
       onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+        <View style={[styles.modalContent, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
           <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+            <Text style={[styles.modalTitle, { color: isDark ? colors.text.primaryDark : colors.gray[950] }]}>
               {title}
             </Text>
             <TouchableOpacity onPress={onClose} style={styles.modalCloseButton}>
-              <FontAwesome name="times" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              <FontAwesome name="times" size={20} color={isDark ? colors.gray[400] : colors.text.secondary} />
             </TouchableOpacity>
           </View>
           <FlatList
@@ -70,7 +71,7 @@ function PickerModal({ visible, onClose, title, options, selected, onSelect, isD
               <TouchableOpacity
                 style={[
                   styles.modalOption,
-                  { backgroundColor: selected === item.id ? (isDark ? '#374151' : '#F3F4F6') : 'transparent' },
+                  { backgroundColor: selected === item.id ? (isDark ? colors.gray[700] : colors.background.tertiary) : 'transparent' },
                 ]}
                 onPress={() => {
                   onSelect(item.id);
@@ -80,15 +81,15 @@ function PickerModal({ visible, onClose, title, options, selected, onSelect, isD
                   <FontAwesome
                     name={item.icon as any}
                     size={18}
-                    color={item.color || (isDark ? '#9CA3AF' : '#6B7280')}
+                    color={item.color || (isDark ? colors.gray[400] : colors.text.secondary)}
                     style={styles.modalOptionIcon}
                   />
                 )}
-                <Text style={[styles.modalOptionText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                <Text style={[styles.modalOptionText, { color: isDark ? colors.text.primaryDark : colors.gray[950] }]}>
                   {item.label}
                 </Text>
                 {selected === item.id && (
-                  <FontAwesome name="check" size={16} color="#3B82F6" style={styles.modalOptionCheck} />
+                  <FontAwesome name="check" size={16} color={colors.primary.blue} style={styles.modalOptionCheck} />
                 )}
               </TouchableOpacity>
             )}
@@ -133,8 +134,8 @@ export default function EditPricebookItemScreen() {
 
   if (!item) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
-        <Text style={{ color: isDark ? '#FFFFFF' : '#111827' }}>Item not found</Text>
+      <View style={[styles.container, styles.centered, { backgroundColor: isDark ? colors.background.primaryDark : colors.background.primary }]}>
+        <Text style={{ color: isDark ? colors.text.primaryDark : colors.gray[950] }}>Item not found</Text>
       </View>
     );
   }
@@ -212,40 +213,40 @@ export default function EditPricebookItemScreen() {
           title: 'Edit Item',
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
-              <FontAwesome name="arrow-left" size={18} color={isDark ? '#FFFFFF' : '#111827'} />
+              <FontAwesome name="arrow-left" size={18} color={isDark ? colors.text.primaryDark : colors.gray[950]} />
             </TouchableOpacity>
           ),
           headerRight: () => (
             <TouchableOpacity onPress={handleDelete} style={styles.headerButton} disabled={deleting}>
               {deleting ? (
-                <ActivityIndicator size="small" color="#EF4444" />
+                <ActivityIndicator size="small" color={colors.status.error} />
               ) : (
-                <FontAwesome name="trash-o" size={20} color="#EF4444" />
+                <FontAwesome name="trash-o" size={20} color={colors.status.error} />
               )}
             </TouchableOpacity>
           ),
         }}
       />
       <KeyboardAvoidingView
-        style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}
+        style={[styles.container, { backgroundColor: isDark ? colors.background.primaryDark : colors.background.primary }]}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           {/* Name */}
           <View style={styles.field}>
-            <Text style={[styles.label, { color: isDark ? '#D1D5DB' : '#374151' }]}>
+            <Text style={[styles.label, { color: isDark ? colors.gray[300] : colors.gray[700] }]}>
               Item Name
             </Text>
             <TextInput
               style={[
                 styles.input,
                 {
-                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                  color: isDark ? '#FFFFFF' : '#111827',
-                  borderColor: isDark ? '#374151' : '#E5E7EB',
+                  backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary,
+                  color: isDark ? colors.text.primaryDark : colors.gray[950],
+                  borderColor: isDark ? colors.gray[700] : colors.border.light,
                 },
               ]}
               placeholder="e.g., 50 Gallon Gas Water Heater"
-              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              placeholderTextColor={isDark ? colors.text.secondary : colors.gray[400]}
               value={name}
               onChangeText={setName}
             />
@@ -253,15 +254,15 @@ export default function EditPricebookItemScreen() {
 
           {/* Category Dropdown */}
           <View style={styles.field}>
-            <Text style={[styles.label, { color: isDark ? '#D1D5DB' : '#374151' }]}>
+            <Text style={[styles.label, { color: isDark ? colors.gray[300] : colors.gray[700] }]}>
               Category
             </Text>
             <TouchableOpacity
               style={[
                 styles.dropdown,
                 {
-                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                  borderColor: isDark ? '#374151' : '#E5E7EB',
+                  backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary,
+                  borderColor: isDark ? colors.gray[700] : colors.border.light,
                 },
               ]}
               onPress={() => setCategoryPickerVisible(true)}>
@@ -274,58 +275,58 @@ export default function EditPricebookItemScreen() {
                     style={styles.dropdownIcon}
                   />
                 )}
-                <Text style={[styles.dropdownText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                <Text style={[styles.dropdownText, { color: isDark ? colors.text.primaryDark : colors.gray[950] }]}>
                   {selectedCategory?.label || 'Select category'}
                 </Text>
               </View>
-              <FontAwesome name="chevron-down" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+              <FontAwesome name="chevron-down" size={14} color={isDark ? colors.text.secondary : colors.gray[400]} />
             </TouchableOpacity>
           </View>
 
           {/* Unit Dropdown */}
           <View style={styles.field}>
-            <Text style={[styles.label, { color: isDark ? '#D1D5DB' : '#374151' }]}>
+            <Text style={[styles.label, { color: isDark ? colors.gray[300] : colors.gray[700] }]}>
               Unit
             </Text>
             <TouchableOpacity
               style={[
                 styles.dropdown,
                 {
-                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                  borderColor: isDark ? '#374151' : '#E5E7EB',
+                  backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary,
+                  borderColor: isDark ? colors.gray[700] : colors.border.light,
                 },
               ]}
               onPress={() => setUnitPickerVisible(true)}>
-              <Text style={[styles.dropdownText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+              <Text style={[styles.dropdownText, { color: isDark ? colors.text.primaryDark : colors.gray[950] }]}>
                 {selectedUnit?.label || 'Select unit'}
               </Text>
-              <FontAwesome name="chevron-down" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+              <FontAwesome name="chevron-down" size={14} color={isDark ? colors.text.secondary : colors.gray[400]} />
             </TouchableOpacity>
           </View>
 
           {/* Pricing */}
           <View style={styles.field}>
-            <Text style={[styles.label, { color: isDark ? '#D1D5DB' : '#374151' }]}>
+            <Text style={[styles.label, { color: isDark ? colors.gray[300] : colors.gray[700] }]}>
               Pricing
             </Text>
             <View style={styles.pricingRow}>
               <View style={styles.priceField}>
-                <Text style={[styles.priceLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                <Text style={[styles.priceLabel, { color: isDark ? colors.gray[400] : colors.text.secondary }]}>
                   Your Cost
                 </Text>
                 <View
                   style={[
                     styles.priceInputWrapper,
                     {
-                      backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                      borderColor: isDark ? '#374151' : '#E5E7EB',
+                      backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary,
+                      borderColor: isDark ? colors.gray[700] : colors.border.light,
                     },
                   ]}>
-                  <Text style={[styles.dollarSign, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>$</Text>
+                  <Text style={[styles.dollarSign, { color: isDark ? colors.text.secondary : colors.gray[400] }]}>$</Text>
                   <TextInput
-                    style={[styles.priceInput, { color: isDark ? '#FFFFFF' : '#111827' }]}
+                    style={[styles.priceInput, { color: isDark ? colors.text.primaryDark : colors.gray[950] }]}
                     placeholder="0.00"
-                    placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                    placeholderTextColor={isDark ? colors.text.secondary : colors.gray[400]}
                     value={cost}
                     onChangeText={setCost}
                     keyboardType="decimal-pad"
@@ -333,22 +334,22 @@ export default function EditPricebookItemScreen() {
                 </View>
               </View>
               <View style={styles.priceField}>
-                <Text style={[styles.priceLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                <Text style={[styles.priceLabel, { color: isDark ? colors.gray[400] : colors.text.secondary }]}>
                   Customer Price
                 </Text>
                 <View
                   style={[
                     styles.priceInputWrapper,
                     {
-                      backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                      borderColor: isDark ? '#374151' : '#E5E7EB',
+                      backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary,
+                      borderColor: isDark ? colors.gray[700] : colors.border.light,
                     },
                   ]}>
-                  <Text style={[styles.dollarSign, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>$</Text>
+                  <Text style={[styles.dollarSign, { color: isDark ? colors.text.secondary : colors.gray[400] }]}>$</Text>
                   <TextInput
-                    style={[styles.priceInput, { color: isDark ? '#FFFFFF' : '#111827' }]}
+                    style={[styles.priceInput, { color: isDark ? colors.text.primaryDark : colors.gray[950] }]}
                     placeholder="0.00"
-                    placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                    placeholderTextColor={isDark ? colors.text.secondary : colors.gray[400]}
                     value={price}
                     onChangeText={setPrice}
                     keyboardType="decimal-pad"
@@ -357,24 +358,24 @@ export default function EditPricebookItemScreen() {
               </View>
             </View>
             {markup && (
-              <View style={[styles.markupBadge, { backgroundColor: isDark ? '#064E3B' : '#D1FAE5' }]}>
-                <FontAwesome name="arrow-up" size={10} color="#10B981" />
+              <View style={[styles.markupBadge, { backgroundColor: isDark ? colors.status.successBgDark : colors.status.successBg }]}>
+                <FontAwesome name="arrow-up" size={10} color={colors.status.success} />
                 <Text style={styles.markupText}>{markup}% markup</Text>
               </View>
             )}
           </View>
         </ScrollView>
 
-        <View style={[styles.footer, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
+        <View style={[styles.footer, { backgroundColor: isDark ? colors.background.primaryDark : colors.background.primary }]}>
           <TouchableOpacity
             style={[styles.saveButton, (!isValid || loading) && styles.buttonDisabled]}
             onPress={handleSave}
             disabled={!isValid || loading}>
             {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <ActivityIndicator color={colors.text.inverse} />
             ) : (
               <>
-                <FontAwesome name="check" size={16} color="#FFFFFF" />
+                <FontAwesome name="check" size={16} color={colors.text.inverse} />
                 <Text style={styles.saveButtonText}>Save Changes</Text>
               </>
             )}
@@ -496,7 +497,7 @@ const styles = StyleSheet.create({
   markupText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#10B981',
+    color: colors.status.success,
   },
   footer: {
     position: 'absolute',
@@ -509,7 +510,7 @@ const styles = StyleSheet.create({
   saveButton: {
     flexDirection: 'row',
     height: 52,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary.blue,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
@@ -519,13 +520,13 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   saveButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.inverse,
     fontSize: 16,
     fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: colors.special.overlay,
     justifyContent: 'flex-end',
   },
   modalContent: {
@@ -540,7 +541,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border.light,
   },
   modalTitle: {
     fontSize: 18,

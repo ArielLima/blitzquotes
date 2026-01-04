@@ -10,6 +10,7 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
+import { colors } from '@/lib/colors';
 
 export {
   ErrorBoundary,
@@ -93,8 +94,8 @@ function RootLayoutNav() {
   // Show loading spinner while checking auth
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colorScheme === 'dark' ? '#1F2937' : '#F3F4F6' }}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colorScheme === 'dark' ? colors.background.secondaryDark : colors.background.tertiary }}>
+        <ActivityIndicator size="large" color={colors.primary.blue} />
       </View>
     );
   }

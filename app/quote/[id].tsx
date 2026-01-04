@@ -22,6 +22,7 @@ import { useStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency, formatPhone, getStatusColor, getStatusLabel, timeAgo } from '@/lib/utils';
 import { getPaymentUrl, getPaymentInstructions, getPaymentButtonLabel } from '@/lib/payments';
+import { colors } from '@/lib/colors';
 import PhotoPicker from '@/components/PhotoPicker';
 import type { Quote, LineItem, QuoteAttachment } from '@/types';
 
@@ -84,12 +85,12 @@ export default function QuoteDetailScreen() {
       title: getDocLabel(),
       headerLeft: () => (
         <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
-          <FontAwesome name="arrow-left" size={18} color={isDark ? '#FFFFFF' : '#111827'} />
+          <FontAwesome name="arrow-left" size={18} color={isDark ? colors.text.primaryDark : colors.text.primary} />
         </TouchableOpacity>
       ),
       headerRight: () => (
         <TouchableOpacity onPress={() => setShowMenu(true)} style={styles.headerButton}>
-          <FontAwesome name="ellipsis-v" size={20} color={isDark ? '#FFFFFF' : '#111827'} />
+          <FontAwesome name="ellipsis-v" size={20} color={isDark ? colors.text.primaryDark : colors.text.primary} />
         </TouchableOpacity>
       ),
     });
@@ -111,8 +112,8 @@ export default function QuoteDetailScreen() {
 
   if (!quote) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
-        <Text style={{ color: isDark ? '#FFFFFF' : '#111827' }}>Quote not found</Text>
+      <View style={[styles.container, styles.centered, { backgroundColor: isDark ? colors.background.primaryDark : colors.background.primary }]}>
+        <Text style={{ color: isDark ? colors.text.primaryDark : colors.text.primary }}>Quote not found</Text>
       </View>
     );
   }
@@ -455,17 +456,17 @@ export default function QuoteDetailScreen() {
   return (
     <>
       <Stack.Screen options={{ title: getDocLabel() }} />
-      <View style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
+      <View style={[styles.container, { backgroundColor: isDark ? colors.background.primaryDark : colors.background.primary }]}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {/* Header Card */}
-          <View style={[styles.headerCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+          <View style={[styles.headerCard, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
             <View style={styles.headerTop}>
               <View>
-                <Text style={[styles.customerName, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                <Text style={[styles.customerName, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
                   {quote.customer_name}
                 </Text>
                 {quote.customer_phone && (
-                  <Text style={[styles.customerPhone, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  <Text style={[styles.customerPhone, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                     {formatPhone(quote.customer_phone)}
                   </Text>
                 )}
@@ -476,15 +477,15 @@ export default function QuoteDetailScreen() {
                 </Text>
               </View>
             </View>
-            <Text style={[styles.jobDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            <Text style={[styles.jobDescription, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
               {quote.job_description}
             </Text>
 
             {/* Job address */}
             {quote.job_address && (
               <View style={styles.dateInfoRow}>
-                <FontAwesome name="map-marker" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
-                <Text style={[styles.dateInfoText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                <FontAwesome name="map-marker" size={14} color={isDark ? colors.text.placeholderDark : colors.text.placeholder} />
+                <Text style={[styles.dateInfoText, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                   {quote.job_address}
                 </Text>
               </View>
@@ -493,8 +494,8 @@ export default function QuoteDetailScreen() {
             {/* Date information */}
             {!isInvoice && quote.valid_until && (
               <View style={styles.dateInfoRow}>
-                <FontAwesome name="calendar" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
-                <Text style={[styles.dateInfoText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                <FontAwesome name="calendar" size={14} color={isDark ? colors.text.placeholderDark : colors.text.placeholder} />
+                <Text style={[styles.dateInfoText, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                   Valid until {formatDateDisplay(quote.valid_until)}
                 </Text>
               </View>
@@ -503,16 +504,16 @@ export default function QuoteDetailScreen() {
               <View style={styles.dateInfoContainer}>
                 {quote.work_date && (
                   <View style={styles.dateInfoRow}>
-                    <FontAwesome name="calendar-check-o" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
-                    <Text style={[styles.dateInfoText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                    <FontAwesome name="calendar-check-o" size={14} color={isDark ? colors.text.placeholderDark : colors.text.placeholder} />
+                    <Text style={[styles.dateInfoText, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                       Work completed {formatDateDisplay(quote.work_date)}
                     </Text>
                   </View>
                 )}
                 {quote.due_date && (
                   <View style={styles.dateInfoRow}>
-                    <FontAwesome name="clock-o" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
-                    <Text style={[styles.dateInfoText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                    <FontAwesome name="clock-o" size={14} color={isDark ? colors.text.placeholderDark : colors.text.placeholder} />
+                    <Text style={[styles.dateInfoText, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                       Due {formatDateDisplay(quote.due_date)}
                     </Text>
                   </View>
@@ -522,7 +523,7 @@ export default function QuoteDetailScreen() {
 
             {quote.status === 'viewed' && quote.viewed_at && (
               <View style={styles.viewedBanner}>
-                <FontAwesome name="eye" size={14} color="#F59E0B" />
+                <FontAwesome name="eye" size={14} color={colors.status.warning} />
                 <Text style={styles.viewedBannerText}>
                   Viewed {timeAgo(quote.viewed_at)}
                 </Text>
@@ -531,23 +532,23 @@ export default function QuoteDetailScreen() {
           </View>
 
           {/* Line Items */}
-          <Text style={[styles.sectionHeader, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+          <Text style={[styles.sectionHeader, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
             LINE ITEMS
           </Text>
 
           {quote.line_items.map((item: LineItem, index: number) => (
             <View
               key={index}
-              style={[styles.lineItem, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+              style={[styles.lineItem, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
               <View style={styles.lineItemTop}>
-                <Text style={[styles.lineItemName, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                <Text style={[styles.lineItemName, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
                   {item.name}
                 </Text>
-                <Text style={[styles.lineItemTotal, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                <Text style={[styles.lineItemTotal, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
                   {formatCurrency(item.total)}
                 </Text>
               </View>
-              <Text style={[styles.lineItemMeta, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              <Text style={[styles.lineItemMeta, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                 {item.qty} {item.unit} × {formatCurrency(item.unit_price)}
               </Text>
             </View>
@@ -556,19 +557,19 @@ export default function QuoteDetailScreen() {
           {/* Labor */}
           {quote.labor_hours > 0 && (
             <>
-              <Text style={[styles.sectionHeader, { color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 16 }]}>
+              <Text style={[styles.sectionHeader, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                 LABOR
               </Text>
-              <View style={[styles.lineItem, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+              <View style={[styles.lineItem, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
                 <View style={styles.lineItemTop}>
-                  <Text style={[styles.lineItemName, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                  <Text style={[styles.lineItemName, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
                     Labor
                   </Text>
-                  <Text style={[styles.lineItemTotal, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                  <Text style={[styles.lineItemTotal, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
                     {formatCurrency(quote.labor_total)}
                   </Text>
                 </View>
-                <Text style={[styles.lineItemMeta, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                <Text style={[styles.lineItemMeta, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                   {quote.labor_hours} hrs × {formatCurrency(quote.labor_rate)}/hr
                 </Text>
               </View>
@@ -576,26 +577,26 @@ export default function QuoteDetailScreen() {
           )}
 
           {/* Totals */}
-          <View style={[styles.totalsCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+          <View style={[styles.totalsCard, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
             <View style={styles.totalsRow}>
-              <Text style={[styles.totalsLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>Subtotal</Text>
-              <Text style={[styles.totalsValue, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+              <Text style={[styles.totalsLabel, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>Subtotal</Text>
+              <Text style={[styles.totalsValue, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
                 {formatCurrency(quote.subtotal)}
               </Text>
             </View>
             {quote.tax > 0 && (
               <View style={styles.totalsRow}>
-                <Text style={[styles.totalsLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                <Text style={[styles.totalsLabel, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                   Tax ({(quote.tax_rate * 100).toFixed(1)}%)
                 </Text>
-                <Text style={[styles.totalsValue, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                <Text style={[styles.totalsValue, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
                   {formatCurrency(quote.tax)}
                 </Text>
               </View>
             )}
             <View style={[styles.totalsRow, styles.totalRow]}>
-              <Text style={[styles.totalLabel, { color: isDark ? '#FFFFFF' : '#111827' }]}>Total</Text>
-              <Text style={[styles.totalValue, { color: '#3B82F6' }]}>
+              <Text style={[styles.totalLabel, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>Total</Text>
+              <Text style={[styles.totalValue, { color: colors.primary.blue }]}>
                 {formatCurrency(quote.total)}
               </Text>
             </View>
@@ -604,11 +605,11 @@ export default function QuoteDetailScreen() {
           {/* Notes */}
           {quote.notes && (
             <>
-              <Text style={[styles.sectionHeader, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              <Text style={[styles.sectionHeader, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                 NOTES
               </Text>
-              <View style={[styles.notesCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-                <Text style={[styles.notesText, { color: isDark ? '#D1D5DB' : '#4B5563' }]}>
+              <View style={[styles.notesCard, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
+                <Text style={[styles.notesText, { color: isDark ? colors.gray[300] : colors.gray[600] }]}>
                   {quote.notes}
                 </Text>
               </View>
@@ -616,12 +617,12 @@ export default function QuoteDetailScreen() {
           )}
 
           {/* Photos */}
-          <View style={[styles.photoSection, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+          <View style={[styles.photoSection, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
             <View style={styles.photoSectionHeader}>
-              <Text style={[styles.photoSectionTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+              <Text style={[styles.photoSectionTitle, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
                 Photos
               </Text>
-              {uploadingPhotos && <ActivityIndicator size="small" color="#3B82F6" />}
+              {uploadingPhotos && <ActivityIndicator size="small" color={colors.primary.blue} />}
             </View>
             <PhotoPicker
               photos={[
@@ -636,11 +637,11 @@ export default function QuoteDetailScreen() {
         </ScrollView>
 
         {/* Action Buttons */}
-        <View style={[styles.footer, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
+        <View style={[styles.footer, { backgroundColor: isDark ? colors.background.primaryDark : colors.background.primary }]}>
           {/* Draft: Send Quote */}
           {quote.status === 'draft' && (
             <TouchableOpacity style={styles.primaryButton} onPress={() => setShowSendModal(true)}>
-              <FontAwesome name="send" size={16} color="#FFFFFF" />
+              <FontAwesome name="send" size={16} color={colors.text.inverse} />
               <Text style={styles.primaryButtonText}>Send Quote</Text>
             </TouchableOpacity>
           )}
@@ -649,13 +650,13 @@ export default function QuoteDetailScreen() {
           {(quote.status === 'sent' || quote.status === 'viewed') && (
             <View style={styles.footerRow}>
               <TouchableOpacity
-                style={[styles.secondaryButton, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                style={[styles.secondaryButton, { backgroundColor: isDark ? colors.gray[700] : colors.gray[100] }]}
                 onPress={() => setShowSendModal(true)}>
-                <FontAwesome name="share" size={16} color={isDark ? '#FFFFFF' : '#111827'} />
-                <Text style={[styles.secondaryButtonText, { color: isDark ? '#FFFFFF' : '#111827' }]}>Resend</Text>
+                <FontAwesome name="share" size={16} color={isDark ? colors.text.primaryDark : colors.text.primary} />
+                <Text style={[styles.secondaryButtonText, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>Resend</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.approvedButton} onPress={markAsApproved}>
-                <FontAwesome name="thumbs-up" size={16} color="#FFFFFF" />
+                <FontAwesome name="thumbs-up" size={16} color={colors.text.inverse} />
                 <Text style={styles.approvedButtonText}>Mark Approved</Text>
               </TouchableOpacity>
             </View>
@@ -664,7 +665,7 @@ export default function QuoteDetailScreen() {
           {/* Approved: Convert to Invoice */}
           {quote.status === 'approved' && (
             <TouchableOpacity style={styles.invoiceButton} onPress={handleConvertToInvoice}>
-              <FontAwesome name="file-text" size={16} color="#FFFFFF" />
+              <FontAwesome name="file-text" size={16} color={colors.text.inverse} />
               <Text style={styles.invoiceButtonText}>Convert to Invoice</Text>
             </TouchableOpacity>
           )}
@@ -673,13 +674,13 @@ export default function QuoteDetailScreen() {
           {quote.status === 'invoiced' && (
             <View style={styles.footerRow}>
               <TouchableOpacity
-                style={[styles.secondaryButton, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                style={[styles.secondaryButton, { backgroundColor: isDark ? colors.gray[700] : colors.gray[100] }]}
                 onPress={() => setShowSendModal(true)}>
-                <FontAwesome name="share" size={16} color={isDark ? '#FFFFFF' : '#111827'} />
-                <Text style={[styles.secondaryButtonText, { color: isDark ? '#FFFFFF' : '#111827' }]}>Send Invoice</Text>
+                <FontAwesome name="share" size={16} color={isDark ? colors.text.primaryDark : colors.text.primary} />
+                <Text style={[styles.secondaryButtonText, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>Send Invoice</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.paidButton} onPress={markAsPaid}>
-                <FontAwesome name="check" size={16} color="#FFFFFF" />
+                <FontAwesome name="check" size={16} color={colors.text.inverse} />
                 <Text style={styles.paidButtonText}>Mark Paid</Text>
               </TouchableOpacity>
             </View>
@@ -688,7 +689,7 @@ export default function QuoteDetailScreen() {
           {/* Paid: Show confirmation */}
           {quote.status === 'paid' && (
             <View style={styles.paidBanner}>
-              <FontAwesome name="check-circle" size={20} color="#10B981" />
+              <FontAwesome name="check-circle" size={20} color={colors.status.success} />
               <Text style={styles.paidBannerText}>Paid {quote.paid_at ? timeAgo(quote.paid_at) : ''}</Text>
             </View>
           )}
@@ -705,15 +706,15 @@ export default function QuoteDetailScreen() {
           style={styles.menuOverlay}
           activeOpacity={1}
           onPress={() => setShowMenu(false)}>
-          <View style={[styles.menuContent, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+          <View style={[styles.menuContent, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
                 setShowMenu(false);
                 router.push(`/quote/new?editId=${id}`);
               }}>
-              <FontAwesome name="pencil" size={16} color="#3B82F6" style={styles.menuIcon} />
-              <Text style={[styles.menuItemText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+              <FontAwesome name="pencil" size={16} color={colors.primary.blue} style={styles.menuIcon} />
+              <Text style={[styles.menuItemText, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
                 Edit {getDocLabel()}
               </Text>
             </TouchableOpacity>
@@ -723,18 +724,18 @@ export default function QuoteDetailScreen() {
                 setShowMenu(false);
                 handleDuplicate();
               }}>
-              <FontAwesome name="copy" size={16} color="#8B5CF6" style={styles.menuIcon} />
-              <Text style={[styles.menuItemText, { color: isDark ? '#FFFFFF' : '#111827' }]}>Duplicate</Text>
+              <FontAwesome name="copy" size={16} color={colors.special.purple} style={styles.menuIcon} />
+              <Text style={[styles.menuItemText, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>Duplicate</Text>
             </TouchableOpacity>
-            <View style={[styles.menuDivider, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]} />
+            <View style={[styles.menuDivider, { backgroundColor: isDark ? colors.border.dark : colors.border.light }]} />
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
                 setShowMenu(false);
                 handleDelete();
               }}>
-              <FontAwesome name="trash-o" size={16} color="#EF4444" style={styles.menuIcon} />
-              <Text style={[styles.menuItemText, { color: '#EF4444' }]}>
+              <FontAwesome name="trash-o" size={16} color={colors.status.error} style={styles.menuIcon} />
+              <Text style={[styles.menuItemText, { color: colors.status.error }]}>
                 Delete {getDocLabel()}
               </Text>
             </TouchableOpacity>
@@ -749,17 +750,17 @@ export default function QuoteDetailScreen() {
         transparent={true}
         onRequestClose={() => setShowSendModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.sendModalContent, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+          <View style={[styles.sendModalContent, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+              <Text style={[styles.modalTitle, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
                 Send {getDocLabel()}
               </Text>
               <TouchableOpacity onPress={() => setShowSendModal(false)}>
-                <FontAwesome name="times" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                <FontAwesome name="times" size={20} color={isDark ? colors.text.secondaryDark : colors.text.secondary} />
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.sendModalSubtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            <Text style={[styles.sendModalSubtitle, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
               Send to {quote.customer_name}
               {quote.customer_phone ? ` • ${formatPhone(quote.customer_phone)}` : ''}
               {quote.customer_email ? ` • ${quote.customer_email}` : ''}
@@ -767,79 +768,79 @@ export default function QuoteDetailScreen() {
 
             <View style={styles.sendOptions}>
               <TouchableOpacity
-                style={[styles.sendOption, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                style={[styles.sendOption, { backgroundColor: isDark ? colors.gray[700] : colors.gray[100] }]}
                 onPress={handleSendSMS}>
-                <View style={[styles.sendOptionIcon, { backgroundColor: '#10B981' }]}>
-                  <FontAwesome name="comment" size={20} color="#FFFFFF" />
+                <View style={[styles.sendOptionIcon, { backgroundColor: colors.status.success }]}>
+                  <FontAwesome name="comment" size={20} color={colors.text.inverse} />
                 </View>
                 <View style={styles.sendOptionText}>
-                  <Text style={[styles.sendOptionTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                  <Text style={[styles.sendOptionTitle, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
                     Text Message
                   </Text>
-                  <Text style={[styles.sendOptionDesc, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  <Text style={[styles.sendOptionDesc, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                     {quote.customer_phone ? `Open SMS with ${getDocLabel().toLowerCase()} link` : 'No phone number'}
                   </Text>
                 </View>
-                <FontAwesome name="chevron-right" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+                <FontAwesome name="chevron-right" size={14} color={isDark ? colors.text.placeholderDark : colors.text.placeholder} />
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[
                   styles.sendOption,
-                  { backgroundColor: isDark ? '#374151' : '#F3F4F6' },
+                  { backgroundColor: isDark ? colors.gray[700] : colors.gray[100] },
                   !quote.customer_email && styles.sendOptionDisabled,
                 ]}
                 onPress={handleSendEmail}
                 disabled={!quote.customer_email}>
-                <View style={[styles.sendOptionIcon, { backgroundColor: quote.customer_email ? '#EF4444' : '#9CA3AF' }]}>
-                  <FontAwesome name="envelope" size={20} color="#FFFFFF" />
+                <View style={[styles.sendOptionIcon, { backgroundColor: quote.customer_email ? colors.status.error : colors.text.placeholder }]}>
+                  <FontAwesome name="envelope" size={20} color={colors.text.inverse} />
                 </View>
                 <View style={styles.sendOptionText}>
                   <Text style={[
                     styles.sendOptionTitle,
-                    { color: quote.customer_email ? (isDark ? '#FFFFFF' : '#111827') : (isDark ? '#6B7280' : '#9CA3AF') }
+                    { color: quote.customer_email ? (isDark ? colors.text.primaryDark : colors.text.primary) : (isDark ? colors.text.placeholderDark : colors.text.placeholder) }
                   ]}>
                     Email
                   </Text>
-                  <Text style={[styles.sendOptionDesc, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  <Text style={[styles.sendOptionDesc, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                     {quote.customer_email || 'No email address'}
                   </Text>
                 </View>
-                <FontAwesome name="chevron-right" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+                <FontAwesome name="chevron-right" size={14} color={isDark ? colors.text.placeholderDark : colors.text.placeholder} />
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.sendOption, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                style={[styles.sendOption, { backgroundColor: isDark ? colors.gray[700] : colors.gray[100] }]}
                 onPress={handleShare}>
-                <View style={[styles.sendOptionIcon, { backgroundColor: '#3B82F6' }]}>
-                  <FontAwesome name="share" size={20} color="#FFFFFF" />
+                <View style={[styles.sendOptionIcon, { backgroundColor: colors.primary.blue }]}>
+                  <FontAwesome name="share" size={20} color={colors.text.inverse} />
                 </View>
                 <View style={styles.sendOptionText}>
-                  <Text style={[styles.sendOptionTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                  <Text style={[styles.sendOptionTitle, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
                     Share
                   </Text>
-                  <Text style={[styles.sendOptionDesc, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  <Text style={[styles.sendOptionDesc, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                     Email, WhatsApp, other apps
                   </Text>
                 </View>
-                <FontAwesome name="chevron-right" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+                <FontAwesome name="chevron-right" size={14} color={isDark ? colors.text.placeholderDark : colors.text.placeholder} />
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.sendOption, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                style={[styles.sendOption, { backgroundColor: isDark ? colors.gray[700] : colors.gray[100] }]}
                 onPress={handleCopyLink}>
-                <View style={[styles.sendOptionIcon, { backgroundColor: '#8B5CF6' }]}>
-                  <FontAwesome name="link" size={20} color="#FFFFFF" />
+                <View style={[styles.sendOptionIcon, { backgroundColor: colors.special.purple }]}>
+                  <FontAwesome name="link" size={20} color={colors.text.inverse} />
                 </View>
                 <View style={styles.sendOptionText}>
-                  <Text style={[styles.sendOptionTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                  <Text style={[styles.sendOptionTitle, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
                     Copy Link
                   </Text>
-                  <Text style={[styles.sendOptionDesc, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  <Text style={[styles.sendOptionDesc, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                     Copy {getDocLabel().toLowerCase()} URL to clipboard
                   </Text>
                 </View>
-                <FontAwesome name="chevron-right" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+                <FontAwesome name="chevron-right" size={14} color={isDark ? colors.text.placeholderDark : colors.text.placeholder} />
               </TouchableOpacity>
             </View>
           </View>
@@ -857,9 +858,9 @@ export default function QuoteDetailScreen() {
           setShowDueDatePicker(false);
         }}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.invoiceModalContent, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+          <View style={[styles.invoiceModalContent, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+              <Text style={[styles.modalTitle, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
                 Convert to Invoice
               </Text>
               <TouchableOpacity onPress={() => {
@@ -867,33 +868,33 @@ export default function QuoteDetailScreen() {
                 setShowWorkDatePicker(false);
                 setShowDueDatePicker(false);
               }}>
-                <FontAwesome name="times" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                <FontAwesome name="times" size={20} color={isDark ? colors.text.secondaryDark : colors.text.secondary} />
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.invoiceModalSubtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            <Text style={[styles.invoiceModalSubtitle, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
               Set work completion and payment due dates
             </Text>
 
             <View style={styles.invoiceDateFields}>
               <View style={styles.invoiceDateField}>
-                <Text style={[styles.invoiceDateLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                <Text style={[styles.invoiceDateLabel, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                   Work completed on
                 </Text>
                 <TouchableOpacity
-                  style={[styles.invoiceDateInput, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                  style={[styles.invoiceDateInput, { backgroundColor: isDark ? colors.gray[700] : colors.gray[100] }]}
                   onPress={() => {
                     setShowDueDatePicker(false);
                     setShowWorkDatePicker(true);
                   }}>
-                  <FontAwesome name="calendar-check-o" size={16} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                  <Text style={[styles.invoiceDateText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                  <FontAwesome name="calendar-check-o" size={16} color={isDark ? colors.text.secondaryDark : colors.text.secondary} />
+                  <Text style={[styles.invoiceDateText, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
                     {formatDateDisplay(workDate)}
                   </Text>
                 </TouchableOpacity>
                 {showWorkDatePicker && Platform.OS === 'ios' && (
-                  <View style={[styles.datePickerContainer, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
-                    <View style={[styles.datePickerHeader, { borderBottomColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
+                  <View style={[styles.datePickerContainer, { backgroundColor: isDark ? colors.gray[700] : colors.gray[100] }]}>
+                    <View style={[styles.datePickerHeader, { borderBottomColor: isDark ? colors.gray[600] : colors.border.light }]}>
                       <TouchableOpacity onPress={() => setShowWorkDatePicker(false)}>
                         <Text style={styles.datePickerDone}>Done</Text>
                       </TouchableOpacity>
@@ -923,23 +924,23 @@ export default function QuoteDetailScreen() {
               </View>
 
               <View style={styles.invoiceDateField}>
-                <Text style={[styles.invoiceDateLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                <Text style={[styles.invoiceDateLabel, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                   Payment due by
                 </Text>
                 <TouchableOpacity
-                  style={[styles.invoiceDateInput, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                  style={[styles.invoiceDateInput, { backgroundColor: isDark ? colors.gray[700] : colors.gray[100] }]}
                   onPress={() => {
                     setShowWorkDatePicker(false);
                     setShowDueDatePicker(true);
                   }}>
-                  <FontAwesome name="calendar" size={16} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                  <Text style={[styles.invoiceDateText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                  <FontAwesome name="calendar" size={16} color={isDark ? colors.text.secondaryDark : colors.text.secondary} />
+                  <Text style={[styles.invoiceDateText, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
                     {formatDateDisplay(dueDate)}
                   </Text>
                 </TouchableOpacity>
                 {showDueDatePicker && Platform.OS === 'ios' && (
-                  <View style={[styles.datePickerContainer, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
-                    <View style={[styles.datePickerHeader, { borderBottomColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
+                  <View style={[styles.datePickerContainer, { backgroundColor: isDark ? colors.gray[700] : colors.gray[100] }]}>
+                    <View style={[styles.datePickerHeader, { borderBottomColor: isDark ? colors.gray[600] : colors.border.light }]}>
                       <TouchableOpacity onPress={() => setShowDueDatePicker(false)}>
                         <Text style={styles.datePickerDone}>Done</Text>
                       </TouchableOpacity>
@@ -977,7 +978,7 @@ export default function QuoteDetailScreen() {
                   setShowWorkDatePicker(false);
                   setShowDueDatePicker(false);
                 }}>
-                <Text style={[styles.invoiceModalCancelText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                <Text style={[styles.invoiceModalCancelText, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                   Cancel
                 </Text>
               </TouchableOpacity>
@@ -986,10 +987,10 @@ export default function QuoteDetailScreen() {
                 onPress={confirmConvertToInvoice}
                 disabled={invoiceLoading}>
                 {invoiceLoading ? (
-                  <ActivityIndicator color="#FFFFFF" />
+                  <ActivityIndicator color={colors.text.inverse} />
                 ) : (
                   <>
-                    <FontAwesome name="file-text" size={16} color="#FFFFFF" />
+                    <FontAwesome name="file-text" size={16} color={colors.text.inverse} />
                     <Text style={styles.invoiceModalConfirmText}>Create Invoice</Text>
                   </>
                 )}
@@ -1006,17 +1007,17 @@ export default function QuoteDetailScreen() {
         transparent={true}
         onRequestClose={() => setShowPricebookModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+          <View style={[styles.modalContent, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+              <Text style={[styles.modalTitle, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
                 Save to Pricebook?
               </Text>
               <TouchableOpacity onPress={() => setShowPricebookModal(false)}>
-                <FontAwesome name="times" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                <FontAwesome name="times" size={20} color={isDark ? colors.text.secondaryDark : colors.text.secondary} />
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.modalSubtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            <Text style={[styles.modalSubtitle, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
               These items were AI-estimated. Save them to your pricebook for future quotes.
             </Text>
 
@@ -1026,22 +1027,22 @@ export default function QuoteDetailScreen() {
                   key={index}
                   style={[
                     styles.modalItem,
-                    { backgroundColor: isDark ? '#374151' : '#F9FAFB' },
+                    { backgroundColor: isDark ? colors.gray[700] : colors.background.primary },
                     selectedItems.has(index) && styles.modalItemSelected,
                   ]}
                   onPress={() => toggleItemSelection(index)}>
                   <View style={styles.modalItemCheck}>
                     {selectedItems.has(index) ? (
-                      <FontAwesome name="check-square" size={20} color="#3B82F6" />
+                      <FontAwesome name="check-square" size={20} color={colors.primary.blue} />
                     ) : (
-                      <FontAwesome name="square-o" size={20} color={isDark ? '#6B7280' : '#9CA3AF'} />
+                      <FontAwesome name="square-o" size={20} color={isDark ? colors.text.placeholderDark : colors.text.placeholder} />
                     )}
                   </View>
                   <View style={styles.modalItemInfo}>
-                    <Text style={[styles.modalItemName, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                    <Text style={[styles.modalItemName, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
                       {item.name}
                     </Text>
-                    <Text style={[styles.modalItemPrice, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                    <Text style={[styles.modalItemPrice, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                       {formatCurrency(item.unit_price)} / {item.unit}
                     </Text>
                   </View>
@@ -1053,7 +1054,7 @@ export default function QuoteDetailScreen() {
               <TouchableOpacity
                 style={styles.modalSkipButton}
                 onPress={() => setShowPricebookModal(false)}>
-                <Text style={[styles.modalSkipText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                <Text style={[styles.modalSkipText, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
                   Skip
                 </Text>
               </TouchableOpacity>
@@ -1062,7 +1063,7 @@ export default function QuoteDetailScreen() {
                 onPress={handleSaveToPricebook}
                 disabled={savingToPricebook}>
                 {savingToPricebook ? (
-                  <ActivityIndicator color="#FFFFFF" />
+                  <ActivityIndicator color={colors.text.inverse} />
                 ) : (
                   <Text style={styles.modalSaveText}>
                     Save {selectedItems.size} Item{selectedItems.size !== 1 ? 's' : ''}
@@ -1131,17 +1132,18 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.border.light,
   },
   viewedBannerText: {
     fontSize: 14,
-    color: '#F59E0B',
+    color: colors.status.warning,
     fontWeight: '500',
   },
   sectionHeader: {
     fontSize: 13,
     fontWeight: '600',
     letterSpacing: 0.5,
+    marginTop: 20,
     marginBottom: 8,
     marginLeft: 4,
   },
@@ -1188,7 +1190,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.border.light,
     marginBottom: 0,
   },
   totalLabel: {
@@ -1219,14 +1221,14 @@ const styles = StyleSheet.create({
   primaryButton: {
     flexDirection: 'row',
     height: 52,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary.blue,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
   },
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.inverse,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -1308,7 +1310,7 @@ const styles = StyleSheet.create({
   },
   modalItemSelected: {
     borderWidth: 2,
-    borderColor: '#3B82F6',
+    borderColor: colors.primary.blue,
   },
   modalItemCheck: {
     marginRight: 12,
@@ -1343,13 +1345,13 @@ const styles = StyleSheet.create({
   modalSaveButton: {
     flex: 2,
     height: 48,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary.blue,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalSaveText: {
-    color: '#FFFFFF',
+    color: colors.text.inverse,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -1374,28 +1376,28 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     height: 52,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: colors.special.purple,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
   },
   approvedButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.inverse,
     fontSize: 16,
     fontWeight: '600',
   },
   invoiceButton: {
     flexDirection: 'row',
     height: 52,
-    backgroundColor: '#EC4899',
+    backgroundColor: colors.special.pink,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
   },
   invoiceButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.inverse,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -1403,14 +1405,14 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     height: 52,
-    backgroundColor: '#10B981',
+    backgroundColor: colors.status.success,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
   },
   paidButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.inverse,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -1420,11 +1422,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     height: 52,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: colors.status.successBg,
     borderRadius: 14,
   },
   paidBannerText: {
-    color: '#10B981',
+    color: colors.status.success,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -1540,7 +1542,7 @@ const styles = StyleSheet.create({
   datePickerDone: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#3B82F6',
+    color: colors.primary.blue,
   },
   invoiceModalFooter: {
     flexDirection: 'row',
@@ -1560,14 +1562,14 @@ const styles = StyleSheet.create({
     flex: 2,
     flexDirection: 'row',
     height: 52,
-    backgroundColor: '#EC4899',
+    backgroundColor: colors.special.pink,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
   },
   invoiceModalConfirmText: {
-    color: '#FFFFFF',
+    color: colors.text.inverse,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -1602,6 +1604,6 @@ const styles = StyleSheet.create({
   photoThumbnail: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.gray[200],
   },
 });

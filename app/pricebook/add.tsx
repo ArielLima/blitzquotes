@@ -22,12 +22,13 @@ import * as ImagePicker from 'expo-image-picker';
 import { useStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { submitToBlitzPrices, getRegions, getCategories, getUnits } from '@/lib/blitzprices';
+import { colors } from '@/lib/colors';
 
 // Categories for BlitzPrices (NO LABOR - labor is in user settings)
 const CATEGORIES = [
-  { id: 'materials', label: 'Materials', icon: 'cube', color: '#3B82F6' },
-  { id: 'equipment', label: 'Equipment', icon: 'wrench', color: '#F59E0B' },
-  { id: 'fees', label: 'Fees', icon: 'file-text-o', color: '#8B5CF6' },
+  { id: 'materials', label: 'Materials', icon: 'cube', color: colors.primary.blue },
+  { id: 'equipment', label: 'Equipment', icon: 'wrench', color: colors.status.warning },
+  { id: 'fees', label: 'Fees', icon: 'file-text-o', color: colors.special.purple },
 ];
 
 const UNITS = [
@@ -57,13 +58,13 @@ function PickerModal({ visible, onClose, title, options, selected, onSelect, isD
       animationType="fade"
       onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+        <View style={[styles.modalContent, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
           <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+            <Text style={[styles.modalTitle, { color: isDark ? colors.text.primaryDark : colors.gray[950] }]}>
               {title}
             </Text>
             <TouchableOpacity onPress={onClose} style={styles.modalCloseButton}>
-              <FontAwesome name="times" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              <FontAwesome name="times" size={20} color={isDark ? colors.gray[400] : colors.text.secondary} />
             </TouchableOpacity>
           </View>
           <FlatList
@@ -75,7 +76,7 @@ function PickerModal({ visible, onClose, title, options, selected, onSelect, isD
                 <TouchableOpacity
                   style={[
                     styles.modalOption,
-                    { backgroundColor: selected === itemId ? (isDark ? '#374151' : '#F3F4F6') : 'transparent' },
+                    { backgroundColor: selected === itemId ? (isDark ? colors.gray[700] : colors.background.tertiary) : 'transparent' },
                   ]}
                   onPress={() => {
                     onSelect(itemId);
@@ -85,15 +86,15 @@ function PickerModal({ visible, onClose, title, options, selected, onSelect, isD
                     <FontAwesome
                       name={item.icon as any}
                       size={18}
-                      color={item.color || (isDark ? '#9CA3AF' : '#6B7280')}
+                      color={item.color || (isDark ? colors.gray[400] : colors.text.secondary)}
                       style={styles.modalOptionIcon}
                     />
                   )}
-                  <Text style={[styles.modalOptionText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                  <Text style={[styles.modalOptionText, { color: isDark ? colors.text.primaryDark : colors.gray[950] }]}>
                     {item.label}
                   </Text>
                   {selected === itemId && (
-                    <FontAwesome name="check" size={16} color="#3B82F6" style={styles.modalOptionCheck} />
+                    <FontAwesome name="check" size={16} color={colors.primary.blue} style={styles.modalOptionCheck} />
                   )}
                 </TouchableOpacity>
               );
@@ -288,28 +289,28 @@ export default function AddPriceScreen() {
           title: 'Add Price',
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
-              <FontAwesome name="times" size={20} color={isDark ? '#FFFFFF' : '#111827'} />
+              <FontAwesome name="times" size={20} color={isDark ? colors.text.primaryDark : colors.gray[950]} />
             </TouchableOpacity>
           ),
           headerRight: () => (
             <TouchableOpacity onPress={showImageOptions} style={styles.headerButton} disabled={analyzing}>
               {analyzing ? (
-                <ActivityIndicator size="small" color="#3B82F6" />
+                <ActivityIndicator size="small" color={colors.primary.blue} />
               ) : (
-                <FontAwesome name="camera" size={20} color="#3B82F6" />
+                <FontAwesome name="camera" size={20} color={colors.primary.blue} />
               )}
             </TouchableOpacity>
           ),
         }}
       />
       <KeyboardAvoidingView
-        style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}
+        style={[styles.container, { backgroundColor: isDark ? colors.background.primaryDark : colors.background.primary }]}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           {/* Info Banner */}
-          <View style={[styles.infoBanner, { backgroundColor: isDark ? '#1E3A5F' : '#DBEAFE' }]}>
-            <FontAwesome name="info-circle" size={16} color="#3B82F6" />
-            <Text style={[styles.infoBannerText, { color: isDark ? '#93C5FD' : '#1E40AF' }]}>
+          <View style={[styles.infoBanner, { backgroundColor: isDark ? colors.primary.blueBgDark : colors.status.infoBg }]}>
+            <FontAwesome name="info-circle" size={16} color={colors.primary.blue} />
+            <Text style={[styles.infoBannerText, { color: isDark ? colors.primary.blueLight : colors.primary.blueDark }]}>
               Add real prices you've paid to help other contractors
             </Text>
           </View>
@@ -317,21 +318,21 @@ export default function AddPriceScreen() {
           {/* Photo Scan Banner */}
           {!imageUri && !name && (
             <TouchableOpacity
-              style={[styles.scanBanner, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+              style={[styles.scanBanner, { backgroundColor: isDark ? colors.gray[700] : colors.background.tertiary }]}
               onPress={showImageOptions}
               disabled={analyzing}>
               <View style={styles.scanBannerIcon}>
-                <FontAwesome name="camera" size={24} color="#3B82F6" />
+                <FontAwesome name="camera" size={24} color={colors.primary.blue} />
               </View>
               <View style={styles.scanBannerText}>
-                <Text style={[styles.scanBannerTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                <Text style={[styles.scanBannerTitle, { color: isDark ? colors.text.primaryDark : colors.gray[950] }]}>
                   Snap a Price Tag
                 </Text>
-                <Text style={[styles.scanBannerSubtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                <Text style={[styles.scanBannerSubtitle, { color: isDark ? colors.gray[400] : colors.text.secondary }]}>
                   Auto-fill item details from a photo
                 </Text>
               </View>
-              <FontAwesome name="chevron-right" size={16} color={isDark ? '#6B7280' : '#9CA3AF'} />
+              <FontAwesome name="chevron-right" size={16} color={isDark ? colors.text.secondary : colors.gray[400]} />
             </TouchableOpacity>
           )}
 
@@ -342,16 +343,16 @@ export default function AddPriceScreen() {
               <TouchableOpacity
                 style={styles.removeImageButton}
                 onPress={() => setImageUri(null)}>
-                <FontAwesome name="times" size={14} color="#FFFFFF" />
+                <FontAwesome name="times" size={14} color={colors.text.inverse} />
               </TouchableOpacity>
             </View>
           )}
 
           {/* Loading State */}
           {analyzing && (
-            <View style={[styles.analyzingOverlay, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-              <ActivityIndicator size="large" color="#3B82F6" />
-              <Text style={[styles.analyzingText, { color: isDark ? '#D1D5DB' : '#6B7280' }]}>
+            <View style={[styles.analyzingOverlay, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
+              <ActivityIndicator size="large" color={colors.primary.blue} />
+              <Text style={[styles.analyzingText, { color: isDark ? colors.gray[300] : colors.text.secondary }]}>
                 Analyzing price tag...
               </Text>
             </View>
@@ -359,43 +360,43 @@ export default function AddPriceScreen() {
 
           {/* Region Indicator (from Settings) */}
           <View style={styles.field}>
-            <Text style={[styles.label, { color: isDark ? '#D1D5DB' : '#374151' }]}>
+            <Text style={[styles.label, { color: isDark ? colors.gray[300] : colors.gray[700] }]}>
               Region
             </Text>
             <View
               style={[
                 styles.regionIndicator,
                 {
-                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                  borderColor: isDark ? '#374151' : '#E5E7EB',
+                  backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary,
+                  borderColor: isDark ? colors.gray[700] : colors.border.light,
                 },
               ]}>
-              <FontAwesome name="map-marker" size={16} color="#3B82F6" style={styles.dropdownIcon} />
-              <Text style={[styles.dropdownText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+              <FontAwesome name="map-marker" size={16} color={colors.primary.blue} style={styles.dropdownIcon} />
+              <Text style={[styles.dropdownText, { color: isDark ? colors.text.primaryDark : colors.gray[950] }]}>
                 {regionLabel}
               </Text>
             </View>
-            <Text style={[styles.helpText, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+            <Text style={[styles.helpText, { color: isDark ? colors.text.secondary : colors.gray[400] }]}>
               Change region in Settings
             </Text>
           </View>
 
           {/* Name */}
           <View style={styles.field}>
-            <Text style={[styles.label, { color: isDark ? '#D1D5DB' : '#374151' }]}>
+            <Text style={[styles.label, { color: isDark ? colors.gray[300] : colors.gray[700] }]}>
               Item Name
             </Text>
             <TextInput
               style={[
                 styles.input,
                 {
-                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                  color: isDark ? '#FFFFFF' : '#111827',
-                  borderColor: isDark ? '#374151' : '#E5E7EB',
+                  backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary,
+                  color: isDark ? colors.text.primaryDark : colors.gray[950],
+                  borderColor: isDark ? colors.gray[700] : colors.border.light,
                 },
               ]}
               placeholder="e.g., 50 Gallon Gas Water Heater"
-              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              placeholderTextColor={isDark ? colors.text.secondary : colors.gray[400]}
               value={name}
               onChangeText={setName}
               autoFocus={!imageUri}
@@ -404,15 +405,15 @@ export default function AddPriceScreen() {
 
           {/* Category Dropdown */}
           <View style={styles.field}>
-            <Text style={[styles.label, { color: isDark ? '#D1D5DB' : '#374151' }]}>
+            <Text style={[styles.label, { color: isDark ? colors.gray[300] : colors.gray[700] }]}>
               Category
             </Text>
             <TouchableOpacity
               style={[
                 styles.dropdown,
                 {
-                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                  borderColor: isDark ? '#374151' : '#E5E7EB',
+                  backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary,
+                  borderColor: isDark ? colors.gray[700] : colors.border.light,
                 },
               ]}
               onPress={() => setCategoryPickerVisible(true)}>
@@ -425,74 +426,74 @@ export default function AddPriceScreen() {
                     style={styles.dropdownIcon}
                   />
                 )}
-                <Text style={[styles.dropdownText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                <Text style={[styles.dropdownText, { color: isDark ? colors.text.primaryDark : colors.gray[950] }]}>
                   {selectedCategory?.label || 'Select category'}
                 </Text>
               </View>
-              <FontAwesome name="chevron-down" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+              <FontAwesome name="chevron-down" size={14} color={isDark ? colors.text.secondary : colors.gray[400]} />
             </TouchableOpacity>
           </View>
 
           {/* Unit Dropdown */}
           <View style={styles.field}>
-            <Text style={[styles.label, { color: isDark ? '#D1D5DB' : '#374151' }]}>
+            <Text style={[styles.label, { color: isDark ? colors.gray[300] : colors.gray[700] }]}>
               Unit
             </Text>
             <TouchableOpacity
               style={[
                 styles.dropdown,
                 {
-                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                  borderColor: isDark ? '#374151' : '#E5E7EB',
+                  backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary,
+                  borderColor: isDark ? colors.gray[700] : colors.border.light,
                 },
               ]}
               onPress={() => setUnitPickerVisible(true)}>
-              <Text style={[styles.dropdownText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+              <Text style={[styles.dropdownText, { color: isDark ? colors.text.primaryDark : colors.gray[950] }]}>
                 {selectedUnit?.label || 'Select unit'}
               </Text>
-              <FontAwesome name="chevron-down" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+              <FontAwesome name="chevron-down" size={14} color={isDark ? colors.text.secondary : colors.gray[400]} />
             </TouchableOpacity>
           </View>
 
           {/* Cost */}
           <View style={styles.field}>
-            <Text style={[styles.label, { color: isDark ? '#D1D5DB' : '#374151' }]}>
+            <Text style={[styles.label, { color: isDark ? colors.gray[300] : colors.gray[700] }]}>
               Cost (what you paid)
             </Text>
             <View
               style={[
                 styles.priceInputWrapper,
                 {
-                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                  borderColor: isDark ? '#374151' : '#E5E7EB',
+                  backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary,
+                  borderColor: isDark ? colors.gray[700] : colors.border.light,
                 },
               ]}>
-              <Text style={[styles.dollarSign, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>$</Text>
+              <Text style={[styles.dollarSign, { color: isDark ? colors.text.secondary : colors.gray[400] }]}>$</Text>
               <TextInput
-                style={[styles.priceInput, { color: isDark ? '#FFFFFF' : '#111827' }]}
+                style={[styles.priceInput, { color: isDark ? colors.text.primaryDark : colors.gray[950] }]}
                 placeholder="0.00"
-                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                placeholderTextColor={isDark ? colors.text.secondary : colors.gray[400]}
                 value={cost}
                 onChangeText={setCost}
                 keyboardType="decimal-pad"
               />
             </View>
-            <Text style={[styles.helpText, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+            <Text style={[styles.helpText, { color: isDark ? colors.text.secondary : colors.gray[400] }]}>
               Enter the actual cost you paid (not the price you charge customers)
             </Text>
           </View>
         </ScrollView>
 
-        <View style={[styles.footer, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
+        <View style={[styles.footer, { backgroundColor: isDark ? colors.background.primaryDark : colors.background.primary }]}>
           <TouchableOpacity
             style={[styles.saveButton, (!isValid || loading) && styles.buttonDisabled]}
             onPress={handleSubmit}
             disabled={!isValid || loading}>
             {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <ActivityIndicator color={colors.text.inverse} />
             ) : (
               <>
-                <FontAwesome name="cloud-upload" size={16} color="#FFFFFF" />
+                <FontAwesome name="cloud-upload" size={16} color={colors.text.inverse} />
                 <Text style={styles.saveButtonText}>Submit to BlitzPrices</Text>
               </>
             )}
@@ -679,7 +680,7 @@ const styles = StyleSheet.create({
   saveButton: {
     flexDirection: 'row',
     height: 52,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary.blue,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
@@ -689,13 +690,13 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   saveButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.inverse,
     fontSize: 16,
     fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: colors.special.overlay,
     justifyContent: 'flex-end',
   },
   modalContent: {
@@ -710,7 +711,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border.light,
   },
   modalTitle: {
     fontSize: 18,

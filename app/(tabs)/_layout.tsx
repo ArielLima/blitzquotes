@@ -2,6 +2,7 @@ import React from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Tabs } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
+import { colors } from '@/lib/colors';
 
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof FontAwesome>['name'];
@@ -16,16 +17,16 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#3B82F6',
-        tabBarInactiveTintColor: colorScheme === 'dark' ? '#9CA3AF' : '#6B7280',
+        tabBarActiveTintColor: colors.primary.blue,
+        tabBarInactiveTintColor: colorScheme === 'dark' ? colors.text.secondaryDark : colors.text.secondary,
         tabBarStyle: {
-          backgroundColor: colorScheme === 'dark' ? '#1F2937' : '#FFFFFF',
-          borderTopColor: colorScheme === 'dark' ? '#374151' : '#E5E7EB',
+          backgroundColor: colorScheme === 'dark' ? colors.background.secondaryDark : colors.background.secondary,
+          borderTopColor: colorScheme === 'dark' ? colors.border.dark : colors.border.light,
         },
         headerStyle: {
-          backgroundColor: colorScheme === 'dark' ? '#1F2937' : '#FFFFFF',
+          backgroundColor: colorScheme === 'dark' ? colors.background.secondaryDark : colors.background.secondary,
         },
-        headerTintColor: colorScheme === 'dark' ? '#FFFFFF' : '#111827',
+        headerTintColor: colorScheme === 'dark' ? colors.text.primaryDark : colors.text.primary,
       }}>
       <Tabs.Screen
         name="index"

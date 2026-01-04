@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { useColorScheme } from 'react-native';
+import { colors } from '@/lib/colors';
 
 export default function QuoteLayout() {
   const colorScheme = useColorScheme();
@@ -9,11 +10,11 @@ export default function QuoteLayout() {
     <Stack
       screenOptions={{
         headerStyle: {
-          backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+          backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary,
         },
-        headerTintColor: isDark ? '#FFFFFF' : '#111827',
+        headerTintColor: isDark ? colors.text.primaryDark : colors.gray[950],
         contentStyle: {
-          backgroundColor: isDark ? '#1F2937' : '#F3F4F6',
+          backgroundColor: isDark ? colors.background.secondaryDark : colors.background.tertiary,
         },
       }}
     />

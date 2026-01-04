@@ -13,18 +13,19 @@ import { Link } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useStore } from '@/lib/store';
 import { formatCurrency } from '@/lib/utils';
+import { colors } from '@/lib/colors';
 import { searchBlitzPrices, getRegions, getCategories, type BlitzPricesResult } from '@/lib/blitzprices';
 
 const CATEGORY_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
-  materials: { label: 'Materials', icon: 'cube', color: '#3B82F6' },
-  equipment: { label: 'Equipment', icon: 'wrench', color: '#F59E0B' },
-  fees: { label: 'Fees', icon: 'file-text-o', color: '#8B5CF6' },
+  materials: { label: 'Materials', icon: 'cube', color: colors.primary.blue },
+  equipment: { label: 'Equipment', icon: 'wrench', color: colors.status.warning },
+  fees: { label: 'Fees', icon: 'file-text-o', color: colors.special.purple },
 };
 
 const CONFIDENCE_COLORS = {
-  high: '#10B981',
-  medium: '#F59E0B',
-  low: '#EF4444',
+  high: colors.status.success,
+  medium: colors.status.warning,
+  low: colors.status.error,
 };
 
 function PriceCard({ item }: { item: BlitzPricesResult }) {
@@ -36,7 +37,7 @@ function PriceCard({ item }: { item: BlitzPricesResult }) {
     <View
       style={[
         styles.card,
-        { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' },
+        { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary },
       ]}>
       <View style={styles.cardHeader}>
         <View style={[styles.categoryBadge, { backgroundColor: categoryConfig.color + '20' }]}>
@@ -47,31 +48,31 @@ function PriceCard({ item }: { item: BlitzPricesResult }) {
         </View>
         <View style={styles.confidenceContainer}>
           <View style={[styles.confidenceDot, { backgroundColor: CONFIDENCE_COLORS[item.confidence] }]} />
-          <Text style={[styles.confidenceText, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+          <Text style={[styles.confidenceText, { color: isDark ? colors.text.placeholderDark : colors.text.placeholder }]}>
             {item.confidence}
           </Text>
         </View>
       </View>
 
-      <Text style={[styles.itemName, { color: isDark ? '#FFFFFF' : '#111827' }]} numberOfLines={2}>
+      <Text style={[styles.itemName, { color: isDark ? colors.text.primaryDark : colors.text.primary }]} numberOfLines={2}>
         {item.name}
       </Text>
 
       <View style={styles.cardFooter}>
         <View style={styles.priceContainer}>
-          <Text style={[styles.price, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+          <Text style={[styles.price, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
             {formatCurrency(item.avg_cost)}
           </Text>
-          <Text style={[styles.unit, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+          <Text style={[styles.unit, { color: isDark ? colors.text.placeholderDark : colors.text.placeholder }]}>
             /{item.unit}
           </Text>
         </View>
 
         <View style={styles.rangeContainer}>
-          <Text style={[styles.rangeText, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+          <Text style={[styles.rangeText, { color: isDark ? colors.text.placeholderDark : colors.text.placeholder }]}>
             {formatCurrency(item.min_cost)} - {formatCurrency(item.max_cost)}
           </Text>
-          <Text style={[styles.sampleText, { color: isDark ? '#4B5563' : '#9CA3AF' }]}>
+          <Text style={[styles.sampleText, { color: isDark ? colors.gray[600] : colors.gray[400] }]}>
             {item.sample_size} reports
           </Text>
         </View>
@@ -87,16 +88,16 @@ function EmptyState({ hasSearched }: { hasSearched: boolean }) {
   if (hasSearched) {
     return (
       <View style={styles.emptyState}>
-        <FontAwesome name="search" size={32} color={isDark ? '#4B5563' : '#9CA3AF'} />
-        <Text style={[styles.emptyTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+        <FontAwesome name="search" size={32} color={isDark ? colors.gray[600] : colors.gray[400]} />
+        <Text style={[styles.emptyTitle, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
           No prices found
         </Text>
-        <Text style={[styles.emptySubtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+        <Text style={[styles.emptySubtitle, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
           Be the first to add this item to BlitzPrices
         </Text>
         <Link href="/pricebook/add" asChild>
           <TouchableOpacity style={styles.emptyAddButton}>
-            <FontAwesome name="plus" size={14} color="#FFFFFF" />
+            <FontAwesome name="plus" size={14} color={colors.text.inverse} />
             <Text style={styles.emptyAddButtonText}>Add Price</Text>
           </TouchableOpacity>
         </Link>
@@ -106,31 +107,31 @@ function EmptyState({ hasSearched }: { hasSearched: boolean }) {
 
   return (
     <View style={styles.emptyState}>
-      <View style={[styles.emptyIconContainer, { backgroundColor: isDark ? '#1E3A5F' : '#DBEAFE' }]}>
-        <FontAwesome name="database" size={32} color="#3B82F6" />
+      <View style={[styles.emptyIconContainer, { backgroundColor: isDark ? colors.primary.blueBgDark : colors.status.infoBg }]}>
+        <FontAwesome name="database" size={32} color={colors.primary.blue} />
       </View>
-      <Text style={[styles.emptyTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+      <Text style={[styles.emptyTitle, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
         BlitzPrices
       </Text>
-      <Text style={[styles.emptySubtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+      <Text style={[styles.emptySubtitle, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
         Search real prices from contractors in your area. Community-powered pricing data.
       </Text>
       <View style={styles.emptyFeatures}>
         <View style={styles.emptyFeature}>
-          <FontAwesome name="check-circle" size={16} color="#10B981" />
-          <Text style={[styles.featureText, { color: isDark ? '#D1D5DB' : '#4B5563' }]}>
+          <FontAwesome name="check-circle" size={16} color={colors.status.success} />
+          <Text style={[styles.featureText, { color: isDark ? colors.gray[300] : colors.gray[600] }]}>
             Real contractor costs
           </Text>
         </View>
         <View style={styles.emptyFeature}>
-          <FontAwesome name="check-circle" size={16} color="#10B981" />
-          <Text style={[styles.featureText, { color: isDark ? '#D1D5DB' : '#4B5563' }]}>
+          <FontAwesome name="check-circle" size={16} color={colors.status.success} />
+          <Text style={[styles.featureText, { color: isDark ? colors.gray[300] : colors.gray[600] }]}>
             Regional pricing
           </Text>
         </View>
         <View style={styles.emptyFeature}>
-          <FontAwesome name="check-circle" size={16} color="#10B981" />
-          <Text style={[styles.featureText, { color: isDark ? '#D1D5DB' : '#4B5563' }]}>
+          <FontAwesome name="check-circle" size={16} color={colors.status.success} />
+          <Text style={[styles.featureText, { color: isDark ? colors.gray[300] : colors.gray[600] }]}>
             Updated in real-time
           </Text>
         </View>
@@ -188,23 +189,23 @@ export default function PricesScreen() {
   const categories = getCategories();
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
+    <View style={[styles.container, { backgroundColor: isDark ? colors.background.primaryDark : colors.background.primary }]}>
       {/* Region Indicator (set in Settings) */}
-      <View style={[styles.regionIndicator, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-        <FontAwesome name="map-marker" size={14} color="#3B82F6" />
-        <Text style={[styles.regionText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+      <View style={[styles.regionIndicator, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
+        <FontAwesome name="map-marker" size={14} color={colors.primary.blue} />
+        <Text style={[styles.regionText, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
           {regionLabel}
         </Text>
       </View>
 
       {/* Search */}
       <View style={styles.searchContainer}>
-        <View style={[styles.searchBox, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-          <FontAwesome name="search" size={16} color={isDark ? '#6B7280' : '#9CA3AF'} />
+        <View style={[styles.searchBox, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
+          <FontAwesome name="search" size={16} color={isDark ? colors.text.placeholderDark : colors.text.placeholder} />
           <TextInput
-            style={[styles.searchInput, { color: isDark ? '#FFFFFF' : '#111827' }]}
+            style={[styles.searchInput, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}
             placeholder="Search materials, equipment, fees..."
-            placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+            placeholderTextColor={isDark ? colors.text.placeholderDark : colors.text.placeholder}
             value={search}
             onChangeText={setSearch}
             onSubmitEditing={handleSearchSubmit}
@@ -212,7 +213,7 @@ export default function PricesScreen() {
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => { setSearch(''); setResults([]); setHasSearched(false); }}>
-              <FontAwesome name="times-circle" size={16} color={isDark ? '#6B7280' : '#9CA3AF'} />
+              <FontAwesome name="times-circle" size={16} color={isDark ? colors.text.placeholderDark : colors.text.placeholder} />
             </TouchableOpacity>
           )}
         </View>
@@ -225,15 +226,15 @@ export default function PricesScreen() {
             styles.filterChip,
             {
               backgroundColor: !selectedCategory
-                ? '#3B82F6'
-                : (isDark ? '#1F2937' : '#FFFFFF'),
+                ? colors.primary.blue
+                : (isDark ? colors.background.secondaryDark : colors.background.secondary),
             },
           ]}
           onPress={() => setSelectedCategory(null)}>
           <Text
             style={[
               styles.filterChipText,
-              { color: !selectedCategory ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280') },
+              { color: !selectedCategory ? colors.text.inverse : (isDark ? colors.text.secondaryDark : colors.text.secondary) },
             ]}>
             All
           </Text>
@@ -248,19 +249,19 @@ export default function PricesScreen() {
                 {
                   backgroundColor: selectedCategory === cat.value
                     ? config.color
-                    : (isDark ? '#1F2937' : '#FFFFFF'),
+                    : (isDark ? colors.background.secondaryDark : colors.background.secondary),
                 },
               ]}
               onPress={() => setSelectedCategory(selectedCategory === cat.value ? null : cat.value)}>
               <FontAwesome
                 name={config.icon as any}
                 size={12}
-                color={selectedCategory === cat.value ? '#FFFFFF' : config.color}
+                color={selectedCategory === cat.value ? colors.text.inverse : config.color}
               />
               <Text
                 style={[
                   styles.filterChipText,
-                  { color: selectedCategory === cat.value ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280') },
+                  { color: selectedCategory === cat.value ? colors.text.inverse : (isDark ? colors.text.secondaryDark : colors.text.secondary) },
                 ]}>
                 {cat.label}
               </Text>
@@ -272,7 +273,7 @@ export default function PricesScreen() {
       {/* Error */}
       {error && (
         <View style={styles.errorContainer}>
-          <FontAwesome name="exclamation-circle" size={16} color="#EF4444" />
+          <FontAwesome name="exclamation-circle" size={16} color={colors.status.error} />
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
@@ -280,8 +281,8 @@ export default function PricesScreen() {
       {/* Loading */}
       {isLoading && (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={[styles.loadingText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+          <ActivityIndicator size="large" color={colors.primary.blue} />
+          <Text style={[styles.loadingText, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
             Searching BlitzPrices...
           </Text>
         </View>
@@ -302,7 +303,7 @@ export default function PricesScreen() {
       {/* FAB - Add Price */}
       <Link href="/pricebook/add" asChild>
         <TouchableOpacity style={styles.fab}>
-          <FontAwesome name="plus" size={24} color="#FFFFFF" />
+          <FontAwesome name="plus" size={24} color={colors.text.inverse} />
         </TouchableOpacity>
       </Link>
     </View>
@@ -367,14 +368,14 @@ const styles = StyleSheet.create({
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEE2E2',
+    backgroundColor: colors.status.errorBg,
     marginHorizontal: 16,
     padding: 12,
     borderRadius: 8,
     gap: 8,
   },
   errorText: {
-    color: '#DC2626',
+    color: colors.status.errorDark,
     fontSize: 14,
   },
   loadingContainer: {
@@ -394,7 +395,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 14,
     marginBottom: 10,
-    shadowColor: '#000',
+    shadowColor: colors.gray[950],
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -509,7 +510,7 @@ const styles = StyleSheet.create({
   emptyAddButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary.blue,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 10,
@@ -517,7 +518,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyAddButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.inverse,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -528,10 +529,10 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary.blue,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#3B82F6',
+    shadowColor: colors.primary.blue,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

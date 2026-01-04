@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { useColorScheme } from 'react-native';
+import { colors } from '@/lib/colors';
 
 export default function AuthLayout() {
   const colorScheme = useColorScheme();
@@ -10,7 +11,7 @@ export default function AuthLayout() {
       screenOptions={{
         headerShown: false,
         contentStyle: {
-          backgroundColor: isDark ? '#1F2937' : '#F3F4F6',
+          backgroundColor: isDark ? colors.background.secondaryDark : colors.background.tertiary,
         },
       }}
     />
