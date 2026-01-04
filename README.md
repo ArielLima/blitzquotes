@@ -62,8 +62,8 @@ BlitzQuotes helps solo and small trade contractors (plumbers, HVAC, electricians
 ## Planned Features
 
 ### High Priority (Release)
-- [ ] **Push notifications** - Alert when customer views/approves quote
-- [ ] **Quick templates** - Save common jobs as one-tap templates
+- [x] **Push notifications** - Alert when customer views/approves quote
+- [ ] **Quick templates** - Save common jobs as one-tap templates (covered by duplication)
 
 ### Medium Priority (Post-Release)
 - [ ] **Customer signatures** - Digital signatures on invoices

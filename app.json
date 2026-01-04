@@ -14,7 +14,8 @@
       "backgroundColor": "#1F2937"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ariellima.blitzquotes"
     },
     "android": {
       "adaptiveIcon": {
@@ -41,6 +42,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e847e8be-bc43-41f2-bc68-32e5c4bd4c05"
+      }
     }
   }
 }

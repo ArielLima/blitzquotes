@@ -696,8 +696,11 @@ eas submit            # Submit to stores
   - Raw response included in errors for debugging
 
 ### High Priority (Release)
-- [ ] **Push notifications** - Alert when customer views/approves quote
-- [ ] **Quick quote templates** - Save common jobs as one-tap templates
+- [x] **Push notifications** - Alert when customer views/approves quote
+  - Expo Push Notifications via quote-view edge function
+  - "Quote Viewed" and "Quote Approved!" notifications
+  - Deep link to quote detail on tap
+- [ ] **Quick quote templates** - Save common jobs as one-tap templates (covered by duplication feature)
 
 ### Medium Priority (Post-Release)
 - [ ] **Customer signature capture** - Digital signatures on invoices
