@@ -177,7 +177,7 @@ async function callOpenRouter(messages: any[], model: string = MODEL, maxTokens:
       model,
       messages,
       max_tokens: maxTokens,
-      temperature: 0.3,
+      temperature: 0.1,
     }),
   });
 

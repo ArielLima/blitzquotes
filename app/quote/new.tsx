@@ -678,10 +678,9 @@ export default function NewQuoteScreen() {
       <>
         <Stack.Screen
           options={{
-            title: isEditing ? `Edit ${documentType}` : isDuplicating ? `Duplicate ${documentType}` : 'New Quote',
+            title: showAIModal ? '' : (isEditing ? `Edit ${documentType}` : isDuplicating ? `Duplicate ${documentType}` : 'New Quote'),
             gestureEnabled: !showAIModal,
-            headerShown: !showAIModal,
-            headerLeft: () => (
+            headerLeft: showAIModal ? () => null : () => (
               <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
                 <FontAwesome name="times" size={20} color={isDark ? colors.text.primaryDark : colors.text.primary} />
               </TouchableOpacity>
