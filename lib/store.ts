@@ -35,6 +35,7 @@ interface AppState {
   user: User | null;
   isLoading: boolean;
   isOnboarded: boolean;
+  settingsChecked: boolean;
 
   // Data
   settings: UserSettings | null;
@@ -58,7 +59,7 @@ interface AppState {
   deleteQuote: (id: string) => void;
 
   // Data fetching
-  fetchSettings: () => Promise<void>;
+  fetchSettings: (userId?: string) => Promise<void>;
   fetchPricebook: () => Promise<void>;
   fetchQuotes: (range?: DateRange) => Promise<void>;
   fetchUserData: () => Promise<void>;
@@ -70,6 +71,7 @@ export const useStore = create<AppState>((set, get) => ({
   user: null,
   isLoading: true,
   isOnboarded: false,
+  settingsChecked: false,
   settings: null,
   pricebook: [],
   quotes: [],
@@ -120,20 +122,20 @@ export const useStore = create<AppState>((set, get) => ({
     })),
 
   // Data fetching
-  fetchSettings: async () => {
-    const { user } = get();
-    if (!user) return;
+  fetchSettings: async (userId?: string) => {
+    const id = userId || get().user?.id;
+    if (!id) return;
 
     const { data, error } = await supabase
       .from('user_settings')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', id)
       .single();
 
     if (data) {
-      set({ settings: data, isOnboarded: true });
+      set({ settings: data, isOnboarded: true, settingsChecked: true });
     } else {
-      set({ isOnboarded: false });
+      set({ isOnboarded: false, settingsChecked: true });
     }
   },
 

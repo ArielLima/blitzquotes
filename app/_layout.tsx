@@ -58,7 +58,7 @@ export default function RootLayout() {
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
   const segments = useSegments();
-  const { user, isLoading, isOnboarded, initialize, setUser } = useStore();
+  const { user, isLoading, isOnboarded, settingsChecked, initialize, setUser } = useStore();
 
   // Initialize on mount
   useEffect(() => {
@@ -77,14 +77,15 @@ function RootLayoutNav() {
           }
           // Log out from RevenueCat
           await logoutRevenueCat();
-          setUser(null);
+          // Reset state
+          useStore.setState({ user: null, settingsChecked: false, isOnboarded: false, settings: null });
         } else if (session?.user) {
           setUser(session.user);
           // Log in to RevenueCat with user ID
           await loginRevenueCat(session.user.id).catch(console.error);
           // Fetch settings to determine if onboarded (for returning users)
           const { fetchSettings } = useStore.getState();
-          await fetchSettings();
+          await fetchSettings(session.user.id);
         }
       }
     );
@@ -116,17 +117,20 @@ function RootLayoutNav() {
       // Not logged in, redirect to login
       router.replace('/(auth)/login');
     } else if (user && inAuthGroup) {
-      // Logged in but on auth screen
+      // Logged in but on auth screen - wait for settings check before navigating
+      if (!settingsChecked) return; // Still loading settings
+
       if (isOnboarded) {
         router.replace('/(tabs)');
       } else {
         router.replace('/onboarding');
       }
     } else if (user && !isOnboarded && !inOnboarding && !inAuthGroup) {
-      // Logged in but not onboarded, redirect to onboarding
+      // Logged in but not onboarded - wait for settings check
+      if (!settingsChecked) return;
       router.replace('/onboarding');
     }
-  }, [user, isLoading, isOnboarded, segments]);
+  }, [user, isLoading, isOnboarded, settingsChecked, segments]);
 
   // Show loading spinner while checking auth
   if (isLoading) {

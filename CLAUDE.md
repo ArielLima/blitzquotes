@@ -710,7 +710,18 @@ eas submit --platform ios                    # Submit to App Store
   - Expo Push Notifications via quote-view edge function
   - "Quote Viewed" and "Quote Approved!" notifications
   - Deep link to quote detail on tap
-- [ ] **Quick quote templates** - Save common jobs as one-tap templates (covered by duplication feature)
+- [ ] **Subscription paywall** - RevenueCat integration (IN PROGRESS)
+  - [x] RevenueCat SDK integrated and configured
+  - [x] PaywallModal with monthly/yearly plan selection
+  - [x] 3 free quotes/month quota checking
+  - [x] Customer Center for subscription management
+  - [ ] Create products in App Store Connect
+  - [ ] Link products in RevenueCat dashboard
+  - [ ] Switch to production API key
+  - [ ] Test real purchases
+- [ ] **Social auth** - Apple Sign In + Google Sign In
+  - Required for App Store if any social login exists
+  - Faster onboarding for users
 
 ### Medium Priority (Post-Release)
 - [ ] **Customer signature capture** - Digital signatures on invoices
