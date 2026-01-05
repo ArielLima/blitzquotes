@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -11,6 +11,9 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
+  Keyboard,
+  TouchableWithoutFeedback,
+  Image,
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { signUp } from '@/lib/supabase';
@@ -25,7 +28,12 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const passwordRef = useRef<TextInput>(null);
+  const confirmPasswordRef = useRef<TextInput>(null);
+
   const handleRegister = async () => {
+    Keyboard.dismiss();
+
     if (!email || !password) {
       Alert.alert('Error', 'Please enter email and password');
       return;
@@ -57,115 +65,138 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.tertiary }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled">
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: isDark ? colors.text.primaryDark : colors.gray[950] }]}>
-              Create Account
-            </Text>
-            <Text style={[styles.subtitle, { color: isDark ? colors.gray[400] : colors.text.secondary }]}>
-              Start quoting in under a minute
-            </Text>
-          </View>
-
-          <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, { color: isDark ? colors.gray[300] : colors.gray[700] }]}>
-                Email
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: isDark ? colors.gray[700] : colors.background.secondary,
-                    color: isDark ? colors.text.primaryDark : colors.gray[950],
-                    borderColor: isDark ? colors.gray[600] : colors.border.medium,
-                  },
-                ]}
-                placeholder="you@example.com"
-                placeholderTextColor={isDark ? colors.text.secondary : colors.gray[400]}
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                autoComplete="email"
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <KeyboardAvoidingView
+        style={[styles.container, { backgroundColor: isDark ? colors.background.primaryDark : colors.background.primary }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+          <View style={styles.content}>
+            {/* Logo */}
+            <View style={styles.logoContainer}>
+              <Image
+                source={require('@/assets/images/icon.png')}
+                style={styles.logo}
               />
             </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, { color: isDark ? colors.gray[300] : colors.gray[700] }]}>
-                Password
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={[styles.title, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
+                Create account
               </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: isDark ? colors.gray[700] : colors.background.secondary,
-                    color: isDark ? colors.text.primaryDark : colors.gray[950],
-                    borderColor: isDark ? colors.gray[600] : colors.border.medium,
-                  },
-                ]}
-                placeholder="••••••••"
-                placeholderTextColor={isDark ? colors.text.secondary : colors.gray[400]}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                autoComplete="new-password"
-              />
+              <Text style={[styles.subtitle, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
+                Start quoting in under a minute
+              </Text>
             </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, { color: isDark ? colors.gray[300] : colors.gray[700] }]}>
-                Confirm Password
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: isDark ? colors.gray[700] : colors.background.secondary,
-                    color: isDark ? colors.text.primaryDark : colors.gray[950],
-                    borderColor: isDark ? colors.gray[600] : colors.border.medium,
-                  },
-                ]}
-                placeholder="••••••••"
-                placeholderTextColor={isDark ? colors.text.secondary : colors.gray[400]}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
-                autoComplete="new-password"
-              />
-            </View>
+            {/* Form */}
+            <View style={styles.form}>
+              <View style={styles.inputContainer}>
+                <Text style={[styles.label, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
+                  Email
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary,
+                      color: isDark ? colors.text.primaryDark : colors.text.primary,
+                    },
+                  ]}
+                  placeholder="you@example.com"
+                  placeholderTextColor={isDark ? colors.text.placeholderDark : colors.text.placeholder}
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  autoComplete="email"
+                  returnKeyType="next"
+                  onSubmitEditing={() => passwordRef.current?.focus()}
+                  blurOnSubmit={false}
+                />
+              </View>
 
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleRegister}
-              disabled={loading}>
-              {loading ? (
-                <ActivityIndicator color={colors.text.inverse} />
-              ) : (
-                <Text style={styles.buttonText}>Create Account</Text>
-              )}
-            </TouchableOpacity>
-          </View>
+              <View style={styles.inputContainer}>
+                <Text style={[styles.label, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
+                  Password
+                </Text>
+                <TextInput
+                  ref={passwordRef}
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary,
+                      color: isDark ? colors.text.primaryDark : colors.text.primary,
+                    },
+                  ]}
+                  placeholder="At least 6 characters"
+                  placeholderTextColor={isDark ? colors.text.placeholderDark : colors.text.placeholder}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  autoComplete="new-password"
+                  returnKeyType="next"
+                  onSubmitEditing={() => confirmPasswordRef.current?.focus()}
+                  blurOnSubmit={false}
+                />
+              </View>
 
-          <View style={styles.footer}>
-            <Text style={[styles.footerText, { color: isDark ? colors.gray[400] : colors.text.secondary }]}>
-              Already have an account?{' '}
-            </Text>
-            <Link href="/(auth)/login" asChild>
-              <TouchableOpacity>
-                <Text style={styles.link}>Sign In</Text>
+              <View style={styles.inputContainer}>
+                <Text style={[styles.label, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
+                  Confirm Password
+                </Text>
+                <TextInput
+                  ref={confirmPasswordRef}
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary,
+                      color: isDark ? colors.text.primaryDark : colors.text.primary,
+                    },
+                  ]}
+                  placeholder="Re-enter your password"
+                  placeholderTextColor={isDark ? colors.text.placeholderDark : colors.text.placeholder}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry
+                  autoComplete="new-password"
+                  returnKeyType="done"
+                  onSubmitEditing={handleRegister}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.button, loading && styles.buttonDisabled]}
+                onPress={handleRegister}
+                disabled={loading}
+                activeOpacity={0.8}>
+                {loading ? (
+                  <ActivityIndicator color={colors.text.inverse} />
+                ) : (
+                  <Text style={styles.buttonText}>Create Account</Text>
+                )}
               </TouchableOpacity>
-            </Link>
+            </View>
+
+            {/* Footer */}
+            <View style={styles.footer}>
+              <Text style={[styles.footerText, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
+                Already have an account?{' '}
+              </Text>
+              <Link href="/(auth)/login" asChild>
+                <TouchableOpacity>
+                  <Text style={styles.link}>Sign In</Text>
+                </TouchableOpacity>
+              </Link>
+            </View>
           </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -180,40 +211,51 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 24,
+    paddingTop: 60,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  logo: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 40,
   },
   title: {
     fontSize: 28,
     fontWeight: '700',
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
     marginTop: 8,
   },
   form: {
-    gap: 16,
+    gap: 20,
   },
   inputContainer: {
-    gap: 6,
+    gap: 8,
   },
   label: {
     fontSize: 14,
     fontWeight: '500',
+    marginLeft: 4,
   },
   input: {
-    height: 48,
-    borderWidth: 1,
-    borderRadius: 8,
+    height: 52,
+    borderRadius: 12,
     paddingHorizontal: 16,
     fontSize: 16,
   },
   button: {
-    height: 48,
+    height: 52,
     backgroundColor: colors.primary.blue,
-    borderRadius: 8,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 8,
@@ -223,19 +265,19 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: colors.text.inverse,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 32,
+    marginTop: 40,
   },
   footerText: {
-    fontSize: 14,
+    fontSize: 15,
   },
   link: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: colors.primary.blue,
   },

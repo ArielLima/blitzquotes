@@ -515,53 +515,28 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Subscription Card */}
+      {/* Subscription Row */}
       {quotaInfo && !quotaInfo.isSubscribed && (
         <TouchableOpacity
-          style={[styles.subscriptionCard, { backgroundColor: isDark ? colors.gray[700] : colors.background.secondary }]}
+          style={[styles.subscriptionRow, { backgroundColor: isDark ? colors.gray[700] : colors.background.secondary }]}
           onPress={() => setShowPaywall(true)}
           activeOpacity={0.7}>
-          <View style={styles.subscriptionLeft}>
-            <View style={[styles.subscriptionIcon, { backgroundColor: colors.primary.blue + '20' }]}>
-              <FontAwesome name="bolt" size={18} color={colors.primary.blue} />
-            </View>
-            <View>
-              <Text style={[styles.subscriptionTitle, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
-                Free Plan
-              </Text>
-              <Text style={[styles.subscriptionSubtitle, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
-                {quotaInfo.quotesRemaining} of {getSubscriptionInfo().freeQuotesPerMonth} quotes left this month
-              </Text>
-            </View>
-          </View>
-          <View style={styles.upgradeButton}>
-            <Text style={styles.upgradeButtonText}>Upgrade</Text>
-          </View>
+          <Text style={[styles.subscriptionText, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
+            {quotaInfo.quotesRemaining} of {getSubscriptionInfo().freeQuotesPerMonth} free quotes left
+          </Text>
+          <Text style={styles.upgradeLink}>Upgrade</Text>
         </TouchableOpacity>
       )}
 
       {quotaInfo?.isSubscribed && (
         <TouchableOpacity
-          style={[styles.subscriptionCard, { backgroundColor: isDark ? colors.gray[700] : colors.background.secondary }]}
+          style={[styles.subscriptionRow, { backgroundColor: isDark ? colors.gray[700] : colors.background.secondary }]}
           onPress={handleManageSubscription}
           activeOpacity={0.7}>
-          <View style={styles.subscriptionLeft}>
-            <View style={[styles.subscriptionIcon, { backgroundColor: colors.status.success + '20' }]}>
-              <FontAwesome name="check" size={18} color={colors.status.success} />
-            </View>
-            <View>
-              <Text style={[styles.subscriptionTitle, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
-                Pro Plan
-              </Text>
-              <Text style={[styles.subscriptionSubtitle, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
-                Unlimited quotes
-              </Text>
-            </View>
-          </View>
-          <View style={styles.manageButton}>
-            <Text style={[styles.manageButtonText, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>Manage</Text>
-            <FontAwesome name="chevron-right" size={12} color={isDark ? colors.text.secondaryDark : colors.text.secondary} />
-          </View>
+          <Text style={[styles.subscriptionText, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
+            Pro Plan
+          </Text>
+          <Text style={[styles.manageLink, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>Manage</Text>
         </TouchableOpacity>
       )}
 
@@ -968,54 +943,26 @@ const styles = StyleSheet.create({
   pickerOptionText: {
     fontSize: 16,
   },
-  // Subscription card styles
-  subscriptionCard: {
+  // Subscription row styles
+  subscriptionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginHorizontal: 16,
     marginTop: 12,
-    padding: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     borderRadius: 12,
   },
-  subscriptionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
+  subscriptionText: {
+    fontSize: 14,
   },
-  subscriptionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  subscriptionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  subscriptionSubtitle: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  upgradeButton: {
-    backgroundColor: colors.primary.blue,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  upgradeButtonText: {
-    color: colors.text.inverse,
+  upgradeLink: {
     fontSize: 14,
     fontWeight: '600',
+    color: colors.primary.blue,
   },
-  manageButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  manageButtonText: {
+  manageLink: {
     fontSize: 14,
   },
 });
