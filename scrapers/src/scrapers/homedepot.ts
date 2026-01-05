@@ -1,38 +1,53 @@
 import puppeteer, { Browser, Page } from 'puppeteer';
-import { ScrapedItem, CategoryConfig } from '../types.js';
+import { ScrapedItem } from '../types.js';
+import * as fs from 'fs';
 
-const CATEGORIES: CategoryConfig[] = [
-  // Plumbing
-  { name: 'Water Heaters', url: '/b/Plumbing-Water-Heaters/N-5yc1vZbqlu', blitzCategory: 'materials' },
-  { name: 'Pipe & Fittings', url: '/b/Plumbing-Pipe-Fittings/N-5yc1vZbqm1', blitzCategory: 'materials' },
-  { name: 'Plumbing Parts', url: '/b/Plumbing-Plumbing-Parts-Repair/N-5yc1vZbqkw', blitzCategory: 'materials' },
-  { name: 'Faucets', url: '/b/Bath-Bathroom-Faucets/N-5yc1vZbza0', blitzCategory: 'materials' },
-  { name: 'Toilets', url: '/b/Bath-Toilets-Toilet-Seats-Toilets/N-5yc1vZc3no', blitzCategory: 'materials' },
-
-  // Electrical
-  { name: 'Wire', url: '/b/Electrical-Wire/N-5yc1vZc4d0', blitzCategory: 'materials' },
-  { name: 'Electrical Boxes', url: '/b/Electrical-Electrical-Boxes-Conduit-Fittings-Electrical-Boxes/N-5yc1vZc4cb', blitzCategory: 'materials' },
-  { name: 'Circuit Breakers', url: '/b/Electrical-Breakers-Breaker-Boxes/N-5yc1vZc56g', blitzCategory: 'materials' },
-  { name: 'Outlets & Switches', url: '/b/Electrical-Wiring-Devices-Light-Controls/N-5yc1vZc33h', blitzCategory: 'materials' },
-
-  // HVAC
-  { name: 'HVAC Parts', url: '/b/Heating-Venting-Cooling/N-5yc1vZc4k8', blitzCategory: 'materials' },
-  { name: 'Thermostats', url: '/b/Heating-Venting-Cooling-Thermostats/N-5yc1vZc4lm', blitzCategory: 'materials' },
-
-  // Building
-  { name: 'Lumber', url: '/b/Lumber-Composites/N-5yc1vZbqpg', blitzCategory: 'materials' },
-  { name: 'Drywall', url: '/b/Building-Materials-Drywall/N-5yc1vZaqte', blitzCategory: 'materials' },
-  { name: 'Insulation', url: '/b/Building-Materials-Insulation/N-5yc1vZaqtb', blitzCategory: 'materials' },
+// Departments to scrape - we'll navigate through the menu to find these
+const DEPARTMENTS = [
+  { name: 'Plumbing', blitzCategory: 'materials' as const },
+  { name: 'Electrical', blitzCategory: 'materials' as const },
+  { name: 'Heating, Venting & Cooling', blitzCategory: 'materials' as const },
+  { name: 'Building Materials', blitzCategory: 'materials' as const },
+  { name: 'Hardware', blitzCategory: 'materials' as const },
+  { name: 'Tools', blitzCategory: 'equipment' as const },
 ];
 
 const BASE_URL = 'https://www.homedepot.com';
-const DELAY_MS = parseInt(process.env.SCRAPE_DELAY_MS || '1000');
-const MAX_PAGES = parseInt(process.env.MAX_PAGES_PER_CATEGORY || '50');
+const DELAY_MS = parseInt(process.env.SCRAPE_DELAY_MS || '1500');
+const MAX_ITEMS_PER_DEPARTMENT = parseInt(process.env.MAX_ITEMS_PER_DEPARTMENT || '1000');
+const CHECKPOINT_FILE = './checkpoint.json';
+
+interface Checkpoint {
+  department: string;
+  page: number;
+  itemsScraped: number;
+  lastProductUrl?: string;
+}
 
 function delay(ms: number): Promise<void> {
-  // Add randomness to delay (80% to 120% of base delay)
   const jitter = ms * (0.8 + Math.random() * 0.4);
   return new Promise(resolve => setTimeout(resolve, jitter));
+}
+
+function loadCheckpoint(): Checkpoint | null {
+  try {
+    if (fs.existsSync(CHECKPOINT_FILE)) {
+      return JSON.parse(fs.readFileSync(CHECKPOINT_FILE, 'utf-8'));
+    }
+  } catch (e) {
+    console.log('No checkpoint found, starting fresh');
+  }
+  return null;
+}
+
+function saveCheckpoint(checkpoint: Checkpoint): void {
+  fs.writeFileSync(CHECKPOINT_FILE, JSON.stringify(checkpoint, null, 2));
+}
+
+function clearCheckpoint(): void {
+  if (fs.existsSync(CHECKPOINT_FILE)) {
+    fs.unlinkSync(CHECKPOINT_FILE);
+  }
 }
 
 function normalizeUnit(text: string): string {
@@ -45,7 +60,6 @@ function normalizeUnit(text: string): string {
 }
 
 function parsePrice(priceText: string): number | null {
-  // Handle formats: "$123.45", "$ 123 45", "123.45"
   const cleaned = priceText.replace(/[^0-9.]/g, '');
   const price = parseFloat(cleaned);
   return isNaN(price) ? null : price;
@@ -59,10 +73,16 @@ export async function scrapeHomeDepot(
   let total = 0;
   let errors = 0;
 
+  // Load checkpoint if exists
+  const checkpoint = loadCheckpoint();
+  if (checkpoint) {
+    console.log(`Resuming from checkpoint: ${checkpoint.department}, page ${checkpoint.page}`);
+  }
+
   try {
     console.log('Launching browser...');
     browser = await puppeteer.launch({
-      headless: true,
+      headless: 'new',
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -75,42 +95,46 @@ export async function scrapeHomeDepot(
 
     const page = await browser.newPage();
 
-    // Set realistic user agent
     await page.setUserAgent(
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     );
-
     await page.setViewport({ width: 1920, height: 1080 });
 
-    const categoriesToScrape = CATEGORIES.slice(
-      options.startCategory || 0,
-      options.maxCategories ? (options.startCategory || 0) + options.maxCategories : undefined
-    );
+    // Determine which departments to scrape
+    let departmentsToScrape = DEPARTMENTS;
+    if (options.maxCategories) {
+      departmentsToScrape = DEPARTMENTS.slice(0, options.maxCategories);
+    }
 
-    for (const category of categoriesToScrape) {
-      console.log(`\nScraping category: ${category.name}`);
+    // Skip to checkpoint department if resuming
+    if (checkpoint) {
+      const idx = departmentsToScrape.findIndex(d => d.name === checkpoint.department);
+      if (idx > 0) {
+        departmentsToScrape = departmentsToScrape.slice(idx);
+      }
+    }
+
+    for (const dept of departmentsToScrape) {
+      console.log(`\n${'='.repeat(50)}`);
+      console.log(`Scraping department: ${dept.name}`);
+      console.log(`${'='.repeat(50)}`);
 
       try {
-        const categoryItems = await scrapeCategory(page, category);
+        const result = await scrapeDepartment(page, dept, onItem, {
+          debug: options.debug,
+          startPage: checkpoint?.department === dept.name ? checkpoint.page : 1,
+        });
+        total += result.total;
+        errors += result.errors;
 
-        for (const item of categoryItems) {
-          try {
-            await onItem(item);
-            total++;
-          } catch (e) {
-            errors++;
-            console.error(`Error saving item: ${(e as Error).message}`);
-          }
-        }
-
-        console.log(`  Scraped ${categoryItems.length} items from ${category.name}`);
+        // Clear checkpoint after completing a department
+        clearCheckpoint();
       } catch (e) {
-        console.error(`Error scraping category ${category.name}: ${(e as Error).message}`);
+        console.error(`Error scraping ${dept.name}: ${(e as Error).message}`);
         errors++;
       }
 
-      // Delay between categories
-      await delay(DELAY_MS * 2);
+      await delay(DELAY_MS * 3);
     }
   } finally {
     if (browser) {
@@ -121,136 +145,233 @@ export async function scrapeHomeDepot(
   return { total, errors };
 }
 
-async function scrapeCategory(page: Page, category: CategoryConfig): Promise<ScrapedItem[]> {
-  const items: ScrapedItem[] = [];
-  let pageNum = 1;
-  let hasMore = true;
+async function scrapeDepartment(
+  page: Page,
+  dept: { name: string; blitzCategory: 'materials' | 'equipment' | 'fees' },
+  onItem: (item: ScrapedItem) => Promise<void>,
+  options: { debug?: boolean; startPage?: number }
+): Promise<{ total: number; errors: number }> {
+  let total = 0;
+  let errors = 0;
 
-  while (hasMore && pageNum <= MAX_PAGES) {
-    const url = `${BASE_URL}${category.url}?catStyle=ShowProducts&Nao=${(pageNum - 1) * 24}`;
-    console.log(`  Page ${pageNum}: ${url}`);
+  try {
+    // Step 1: Navigate to Home Depot
+    console.log('  Step 1: Going to Home Depot...');
+    console.log(`    URL: ${BASE_URL}`);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle2', timeout: 60000 });
+    console.log('    ✓ Page loaded');
+    console.log(`    Current URL: ${page.url()}`);
+    await delay(DELAY_MS);
 
-    try {
-      await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+    // Step 2: Click "Shop All" in the header
+    console.log('  Step 2: Looking for Shop All button...');
+    const shopAllBtn = await page.waitForSelector('button:has-text("Shop All"), [data-testid="shop-all"], a:has-text("Shop All")', { timeout: 10000 }).catch(() => null);
+    if (shopAllBtn) {
+      console.log('    ✓ Found Shop All button, clicking...');
+      await shopAllBtn.click();
       await delay(DELAY_MS);
-
-      // Wait for product grid - try multiple possible selectors
-      await page.waitForSelector('[data-testid="product-header"], [data-testid="product-pod"], .product-pod', { timeout: 15000 }).catch(() => null);
-
-      // Additional wait for dynamic content
-      await delay(1000);
-
-      // Debug: save screenshot if enabled
-      if (options.debug) {
-        const debugDir = './debug';
-        const fs = await import('fs');
-        if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir);
-
-        const slug = category.name.toLowerCase().replace(/\s+/g, '-');
-        await page.screenshot({ path: `${debugDir}/${slug}-page${pageNum}.png`, fullPage: false });
-        console.log(`  Debug: saved screenshot to ${debugDir}/${slug}-page${pageNum}.png`);
-      }
-
-      const pageItems = await page.evaluate((cat, baseUrl) => {
-        const products: any[] = [];
-
-        // Products are inside browse-search-pods containers
-        const containers = document.querySelectorAll('[id^="browse-search-pods"]');
-        let pods: Element[] = [];
-
-        if (containers.length > 0) {
-          containers.forEach(container => {
-            const containerPods = container.querySelectorAll('div.product-pod[data-product-id]');
-            pods.push(...Array.from(containerPods));
-          });
-        } else {
-          // Fallback: search entire page
-          pods = Array.from(document.querySelectorAll('div.product-pod[data-product-id]'));
-        }
-
-        pods.forEach((pod) => {
-          try {
-            // Get product ID directly from the pod
-            const sku = pod.getAttribute('data-product-id') || '';
-
-            // Product name: brand + label
-            const brand = pod.querySelector('[data-testid="attribute-brandname-inline"]')?.textContent?.trim() || '';
-            const label = pod.querySelector('[data-testid="attribute-product-label"]')?.textContent?.trim() || '';
-            const name = brand ? `${brand} ${label}` : label;
-
-            // Price from [data-testid="price-simple"]
-            // Structure: $<dollars>.<cents> where dollars is in sui-text-3xl/4xl span
-            let priceText = '';
-            const priceSimple = pod.querySelector('[data-testid="price-simple"]');
-            if (priceSimple) {
-              // Find the dollars span (has sui-text-3xl or sui-text-4xl class)
-              const dollarsEl = priceSimple.querySelector('[class*="sui-text-3xl"], [class*="sui-text-4xl"]');
-              const dollars = dollarsEl?.textContent?.trim() || '';
-
-              // Cents is the last sui-text-xs span in the price row
-              const priceRow = dollarsEl?.parentElement;
-              const spans = priceRow?.querySelectorAll('.sui-text-xs') || [];
-              const centsEl = spans[spans.length - 1];
-              const cents = centsEl?.textContent?.trim() || '00';
-
-              if (dollars) {
-                priceText = `${dollars}.${cents.replace(/[^0-9]/g, '')}`;
-              }
-            }
-
-            // Product URL from the product header link
-            const linkEl = pod.querySelector('[data-testid="product-header"] a');
-            const href = linkEl?.getAttribute('href') || '';
-
-            // Unit info (often in price area, like "/each" or "/sq ft")
-            const unitEl = pod.querySelector('[class*="unit"]');
-            const unitText = unitEl?.textContent || '';
-
-            if (name && priceText) {
-              products.push({
-                name,
-                priceText,
-                sku,
-                unitText,
-                url: href ? `${baseUrl}${href}` : '',
-              });
-            }
-          } catch (e) {
-            // Skip malformed products
-          }
-        });
-
-        return products;
-      }, category, BASE_URL);
-
-      for (const item of pageItems) {
-        const price = parsePrice(item.priceText);
-        if (price && price > 0 && price < 100000) {
-          items.push({
-            source: 'homedepot',
-            source_sku: item.sku,
-            name: item.name,
-            category: category.blitzCategory,
-            subcategory: category.name,
-            price,
-            unit: normalizeUnit(item.unitText || item.name),
-            url: item.url,
-            scraped_at: new Date().toISOString(),
-          });
-        }
-      }
-
-      // Check if there's a next page
-      hasMore = pageItems.length >= 20; // HD shows ~24 per page
-      pageNum++;
-
-    } catch (e) {
-      console.error(`  Error on page ${pageNum}: ${(e as Error).message}`);
-      hasMore = false;
+      console.log(`    Current URL: ${page.url()}`);
+    } else {
+      console.log('    ✗ Shop All button not found, continuing...');
     }
+
+    // Step 3: Look for and click "Shop by Department" or directly find the department
+    console.log(`  Step 3: Finding department "${dept.name}"...`);
+
+    // Try to find the department link
+    console.log(`    Looking for: a:has-text("${dept.name}")`);
+    const deptLink = await page.$(`a:has-text("${dept.name}"), [data-testid*="${dept.name.toLowerCase().replace(/\s+/g, '-')}"]`);
+    if (deptLink) {
+      console.log('    ✓ Found department link, clicking...');
+      await deptLink.click();
+      await delay(DELAY_MS * 2);
+      console.log(`    Current URL: ${page.url()}`);
+    } else {
+      // Fallback: Use search URL
+      const searchUrl = `${BASE_URL}/b/${dept.name.replace(/[,&]/g, '').replace(/\s+/g, '-')}/N-5yc1v`;
+      console.log(`    ✗ Department link not found`);
+      console.log(`    Using fallback URL: ${searchUrl}`);
+      await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+      console.log(`    Current URL: ${page.url()}`);
+    }
+
+    // Step 4: Click "Shop All {department}" if available to get full listing
+    console.log(`  Step 4: Looking for "Shop All ${dept.name}" link...`);
+    await delay(DELAY_MS);
+
+    console.log('    Looking for: a:has-text("Shop All"), a[href*="catStyle=ShowProducts"]');
+    const shopAllDept = await page.$(`a:has-text("Shop All"), a[href*="catStyle=ShowProducts"]`);
+    if (shopAllDept) {
+      console.log('    ✓ Found Shop All link, clicking...');
+      await shopAllDept.click();
+      await delay(DELAY_MS * 2);
+      console.log(`    Current URL: ${page.url()}`);
+    } else {
+      console.log('    ✗ Shop All link not found, continuing with current page...');
+    }
+
+    // Wait for product grid
+    console.log('  Step 5: Waiting for product grid...');
+    console.log('    Looking for: [data-testid="product-pod"], .product-pod, div[data-product-id]');
+    const productGrid = await page.waitForSelector('[data-testid="product-pod"], .product-pod, div[data-product-id]', { timeout: 15000 }).catch(() => null);
+    if (productGrid) {
+      console.log('    ✓ Product grid found');
+    } else {
+      console.log('    ✗ Product grid NOT found - page might be blocked or different structure');
+    }
+
+    if (options.debug) {
+      const debugDir = './debug';
+      if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir);
+      const slug = dept.name.toLowerCase().replace(/\s+/g, '-');
+      await page.screenshot({ path: `${debugDir}/${slug}-listing.png`, fullPage: false });
+      console.log(`  Debug: saved screenshot`);
+    }
+
+    // Step 5: Scrape products - iterate through pages
+    let currentPage = options.startPage || 1;
+    let hasMore = true;
+
+    while (hasMore && total < MAX_ITEMS_PER_DEPARTMENT) {
+      console.log(`\n  Page ${currentPage}:`);
+
+      // Get all product links on this page
+      const productLinks = await page.$$eval(
+        'div.product-pod[data-product-id] a[href*="/p/"], [data-testid="product-pod"] a[href*="/p/"]',
+        (links) => [...new Set(links.map(a => a.getAttribute('href')).filter(Boolean))]
+      );
+
+      console.log(`    Found ${productLinks.length} product links`);
+
+      // Visit each product page to get full details
+      console.log(`    Visiting ${productLinks.length} product pages...`);
+      for (let i = 0; i < productLinks.length; i++) {
+        const link = productLinks[i];
+        if (total >= MAX_ITEMS_PER_DEPARTMENT) break;
+
+        try {
+          const fullUrl = link!.startsWith('http') ? link! : `${BASE_URL}${link}`;
+          console.log(`      [${i + 1}/${productLinks.length}] Scraping: ${fullUrl.slice(0, 80)}...`);
+
+          const item = await scrapeProductPage(page, fullUrl, dept.blitzCategory);
+
+          if (item) {
+            console.log(`        ✓ Got: ${item.name.slice(0, 50)}... - $${item.price}`);
+            await onItem(item);
+            total++;
+
+            if (total % 10 === 0) {
+              console.log(`\n    === Progress: ${total} items scraped ===\n`);
+              saveCheckpoint({ department: dept.name, page: currentPage, itemsScraped: total, lastProductUrl: fullUrl });
+            }
+          } else {
+            console.log(`        ✗ Could not extract product data`);
+          }
+        } catch (e) {
+          errors++;
+          console.error(`        ✗ Error: ${(e as Error).message}`);
+        }
+
+        await delay(DELAY_MS);
+      }
+
+      // Try to go to next page
+      const nextBtn = await page.$('a[aria-label="Next"], button[aria-label="Next"], [data-testid="pagination-next"]');
+      if (nextBtn && total < MAX_ITEMS_PER_DEPARTMENT) {
+        await nextBtn.click();
+        await delay(DELAY_MS * 2);
+        await page.waitForSelector('[data-testid="product-pod"], .product-pod', { timeout: 15000 }).catch(() => null);
+        currentPage++;
+      } else {
+        hasMore = false;
+      }
+    }
+  } catch (e) {
+    console.error(`  Department error: ${(e as Error).message}`);
+    errors++;
   }
 
-  return items;
+  return { total, errors };
 }
 
-export { CATEGORIES };
+async function scrapeProductPage(
+  page: Page,
+  url: string,
+  blitzCategory: 'materials' | 'equipment' | 'fees'
+): Promise<ScrapedItem | null> {
+  // Navigate to product page
+  await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+  await delay(500);
+
+  // Extract product details
+  const details = await page.evaluate(() => {
+    // Product name (brand + title)
+    const brandEl = document.querySelector('[data-testid="product-brand"], .product-brand, h1 span.brand');
+    const titleEl = document.querySelector('h1[data-testid="product-title"], h1.product-title, h1 span:not(.brand)');
+    const brand = brandEl?.textContent?.trim() || '';
+    const title = titleEl?.textContent?.trim() || document.querySelector('h1')?.textContent?.trim() || '';
+    const name = brand ? `${brand} ${title}` : title;
+
+    // Description
+    const descEl = document.querySelector('[data-testid="product-description"], .product-description, [id="product-section-overview"]');
+    const description = descEl?.textContent?.trim().slice(0, 500) || '';
+
+    // Price
+    let price = '';
+    const priceEl = document.querySelector('[data-testid="price-simple"], [data-testid="price-format"], .price');
+    if (priceEl) {
+      const dollarsEl = priceEl.querySelector('[class*="sui-text-4xl"], [class*="sui-text-3xl"], .price-dollars');
+      const centsEl = priceEl.querySelector('.sui-text-xs:last-child, .price-cents');
+      const dollars = dollarsEl?.textContent?.trim() || '';
+      const cents = centsEl?.textContent?.replace(/[^0-9]/g, '') || '00';
+      price = dollars ? `${dollars}.${cents}` : priceEl.textContent || '';
+    }
+
+    // Rating
+    const ratingEl = document.querySelector('[aria-label*="Star"], [data-testid="ratings"], .star-rating');
+    const ratingText = ratingEl?.getAttribute('aria-label') || ratingEl?.textContent || '';
+    const ratingMatch = ratingText.match(/(\d+\.?\d*)/);
+    const rating = ratingMatch ? parseFloat(ratingMatch[1]) : null;
+
+    // Review count
+    const reviewEl = document.querySelector('[data-testid="review-count"], .review-count');
+    const reviewText = reviewEl?.textContent || '';
+    const reviewMatch = reviewText.match(/(\d+)/);
+    const reviewCount = reviewMatch ? parseInt(reviewMatch[1]) : null;
+
+    // SKU/Model number
+    const modelEl = document.querySelector('[data-testid="model-number"], .model-number, [itemprop="model"]');
+    const skuEl = document.querySelector('[data-testid="internet-number"], .internet-number, [itemprop="sku"]');
+    const model = modelEl?.textContent?.replace(/Model\s*#?\s*/i, '').trim() || '';
+    const sku = skuEl?.textContent?.replace(/Internet\s*#?\s*/i, '').trim() || '';
+
+    return { name, description, price, rating, reviewCount, model, sku };
+  });
+
+  if (!details.name || !details.price) {
+    return null;
+  }
+
+  const price = parsePrice(details.price);
+  if (!price || price <= 0 || price > 100000) {
+    return null;
+  }
+
+  return {
+    source: 'homedepot',
+    source_sku: details.sku || details.model,
+    name: details.name,
+    category: blitzCategory,
+    subcategory: '',
+    price,
+    unit: normalizeUnit(details.name),
+    url,
+    scraped_at: new Date().toISOString(),
+    // Extended fields (we can add these to the type if needed)
+    // description: details.description,
+    // rating: details.rating,
+    // review_count: details.reviewCount,
+  };
+}
+
+export { DEPARTMENTS };

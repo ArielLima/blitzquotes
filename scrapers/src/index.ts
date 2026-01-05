@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { scrapeHomeDepot, CATEGORIES } from './scrapers/homedepot.js';
+import { scrapeHomeDepot, DEPARTMENTS } from './scrapers/homedepot.js';
 import { saveItems, supabase } from './db.js';
 import { ScrapedItem } from './types.js';
 
