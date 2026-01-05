@@ -70,6 +70,9 @@ function RootLayoutNav() {
           setUser(null);
         } else if (session?.user) {
           setUser(session.user);
+          // Fetch settings to determine if onboarded (for returning users)
+          const { fetchSettings } = useStore.getState();
+          await fetchSettings();
         }
       }
     );
