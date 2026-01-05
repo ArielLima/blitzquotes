@@ -627,21 +627,35 @@ eas submit --platform ios                    # Submit to App Store
 
 ## Pre-Production Checklist
 
-- [ ] Enable email confirmation in Supabase
-- [ ] Set up deep linking for auth
-- [ ] Set OpenRouter API key as Supabase secret
-- [ ] Enable pg_trgm extension for BlitzPrices search
-- [ ] Create BlitzPrices tables
+- [ ] **Landing page + legal docs** (blitzquotes.com) - Required for App Store
+  - Marketing landing page with app screenshots
+  - Terms of Service (/terms)
+  - Privacy Policy (/privacy)
+  - Support/contact page or email
+- [ ] **In-app App Store requirements**
+  - Account deletion option in Settings (Apple requires this)
+  - Restore Purchases button (required for subscriptions) ✓ already in paywall
+  - Links to Terms of Service and Privacy Policy in Settings
+  - "Manage Subscription" link (can open iOS system settings)
+- [ ] **Paywall legal compliance**
+  - Terms of Service link
+  - Privacy Policy link
+  - Auto-renewal disclosure: "Payment charged to Apple ID. Auto-renews unless canceled 24hrs before period ends. Manage in Settings."
+- [ ] Enable email confirmation in Supabase (Authentication > Email settings)
+- [ ] Set up deep linking for auth (email confirmation links open app)
 - [ ] **Run scrapers to seed BlitzPrices with 50-100k items** (see `/scrapers/CLAUDE.md`)
 - [ ] Test on real devices (iOS + Android)
-- [x] Set up EAS Build
+- [ ] **Supabase Pro + Branching** - Safe deployments with preview branches
+  - Upgrade to Pro plan ($25/mo)
+  - Enable database branching for preview environments
+  - Protects against bad AI prompts or migrations breaking prod
 - [ ] **App version control** - Force update mechanism when app version is outdated
   - Store minimum allowed version in Supabase or remote config
   - Check on app launch, show blocking modal if update required
-- [ ] **Environment switching** - Production vs Test mode
-  - Use separate Supabase projects or schema for test/prod data
-  - Environment variable to toggle (EXPO_PUBLIC_ENV=prod|test)
-  - Different API keys per environment
+- [x] Set up EAS Build
+- [x] Enable pg_trgm extension for BlitzPrices search (in migration)
+- [x] Create BlitzPrices tables (in migration)
+- [x] Set OpenRouter API key as Supabase secret
 
 ---
 

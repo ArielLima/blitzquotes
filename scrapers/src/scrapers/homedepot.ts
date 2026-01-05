@@ -134,42 +134,89 @@ async function scrapeCategory(page: Page, category: CategoryConfig): Promise<Scr
       await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
       await delay(DELAY_MS);
 
-      // Wait for product grid
-      await page.waitForSelector('[data-testid="product-pod"]', { timeout: 10000 }).catch(() => null);
+      // Wait for product grid - try multiple possible selectors
+      await page.waitForSelector('[data-testid="product-header"], [data-testid="product-pod"], .product-pod', { timeout: 15000 }).catch(() => null);
+
+      // Additional wait for dynamic content
+      await delay(1000);
 
       const pageItems = await page.evaluate((cat, baseUrl) => {
         const products: any[] = [];
-        const pods = document.querySelectorAll('[data-testid="product-pod"]');
 
-        pods.forEach((pod) => {
+        // Try multiple selectors for product containers
+        // Home Depot uses various container patterns
+        let pods = document.querySelectorAll('[data-testid="product-pod"]');
+        if (pods.length === 0) {
+          // Fallback: find all product headers and get their parent containers
+          const headers = document.querySelectorAll('[data-testid="product-header"]');
+          pods = new Set<Element>();
+          headers.forEach(h => {
+            // Walk up to find the product card container
+            let parent = h.parentElement;
+            for (let i = 0; i < 5 && parent; i++) {
+              if (parent.querySelector('[data-testid="price-simple"]') ||
+                  parent.querySelector('[class*="price"]')) {
+                (pods as Set<Element>).add(parent);
+                break;
+              }
+              parent = parent.parentElement;
+            }
+          });
+          pods = Array.from(pods as Set<Element>) as unknown as NodeListOf<Element>;
+        }
+
+        (Array.from(pods) as Element[]).forEach((pod) => {
           try {
-            // Product name
-            const nameEl = pod.querySelector('[data-testid="product-header"]');
+            // Product name - multiple selector attempts
+            const nameEl = pod.querySelector('[data-testid="product-header"] span.sui-text-primary') ||
+                          pod.querySelector('[data-testid="product-header"] span') ||
+                          pod.querySelector('[data-testid="product-header"]');
             const name = nameEl?.textContent?.trim();
 
-            // Price - look for the main price display
-            const priceContainer = pod.querySelector('[data-testid="price-format"]');
-            const dollars = priceContainer?.querySelector('.Price-dollars')?.textContent ||
-                           priceContainer?.querySelector('[class*="Price"]')?.textContent;
-            const cents = priceContainer?.querySelector('.Price-cents')?.textContent || '00';
-
-            // Alternative price selector
+            // Price - updated selectors for new HD structure
+            // Try the new sui- based selectors first
             let priceText = '';
-            if (dollars) {
-              priceText = `${dollars}.${cents}`;
-            } else {
-              const altPrice = pod.querySelector('[class*="price"]');
-              priceText = altPrice?.textContent || '';
+            const priceSimple = pod.querySelector('[data-testid="price-simple"]');
+            if (priceSimple) {
+              // New format: sui-font-display classes
+              const dollars = priceSimple.querySelector('.sui-font-display, [class*="sui-text-4xl"], [class*="sui-text-3xl"]')?.textContent;
+              const cents = priceSimple.querySelector('[class*="sui-text-xs"], .sui-text-sm')?.textContent;
+              if (dollars) {
+                priceText = cents ? `${dollars}.${cents.replace(/[^0-9]/g, '')}` : dollars;
+              }
             }
 
-            // SKU from product link
-            const linkEl = pod.querySelector('a[href*="/p/"]');
+            // Fallback to old selectors
+            if (!priceText) {
+              const priceContainer = pod.querySelector('[data-testid="price-format"]');
+              if (priceContainer) {
+                const dollars = priceContainer.querySelector('.Price-dollars, [class*="Price"]')?.textContent;
+                const cents = priceContainer.querySelector('.Price-cents')?.textContent || '00';
+                if (dollars) {
+                  priceText = `${dollars}.${cents}`;
+                }
+              }
+            }
+
+            // Final fallback: any element with price-like content
+            if (!priceText) {
+              const anyPrice = pod.querySelector('[class*="price"], [class*="Price"]');
+              priceText = anyPrice?.textContent || '';
+            }
+
+            // SKU from product link or data attribute
+            const linkEl = pod.querySelector('[data-testid="product-header"] > a') ||
+                          pod.querySelector('a[href*="/p/"]');
             const href = linkEl?.getAttribute('href') || '';
-            const skuMatch = href.match(/\/(\d+)$/);
-            const sku = skuMatch ? skuMatch[1] : '';
+            const productId = linkEl?.getAttribute('data-product-id') ||
+                             linkEl?.getAttribute('product-id') || '';
+            const skuMatch = href.match(/\/(\d+)(?:\?|$)/);
+            const sku = productId || (skuMatch ? skuMatch[1] : '');
 
             // Unit info
-            const unitEl = pod.querySelector('[class*="unit"]') || pod.querySelector('[class*="Unit"]');
+            const unitEl = pod.querySelector('[class*="unit"]') ||
+                          pod.querySelector('[class*="Unit"]') ||
+                          pod.querySelector('[data-testid*="unit"]');
             const unitText = unitEl?.textContent || '';
 
             if (name && priceText) {
@@ -178,7 +225,7 @@ async function scrapeCategory(page: Page, category: CategoryConfig): Promise<Scr
                 priceText,
                 sku,
                 unitText,
-                url: href ? `${baseUrl}${href}` : '',
+                url: href ? (href.startsWith('http') ? href : `${baseUrl}${href}`) : '',
               });
             }
           } catch (e) {

@@ -24,7 +24,6 @@ import { getRegions } from '@/lib/blitzprices';
 import { formatPhone } from '@/lib/utils';
 import { checkQuota, getSubscriptionInfo, type QuotaInfo } from '@/lib/subscription';
 import PaywallModal from '@/components/PaywallModal';
-import RevenueCatUI from 'react-native-purchases-ui';
 
 // Edit Modal Component
 function EditModal({
@@ -320,14 +319,6 @@ export default function SettingsScreen() {
     setShowPaywall(false);
   }, [user]);
 
-  const handleManageSubscription = useCallback(async () => {
-    try {
-      await RevenueCatUI.presentCustomerCenter();
-    } catch (error) {
-      console.error('Failed to open customer center:', error);
-      Alert.alert('Error', 'Unable to open subscription management. Please try again.');
-    }
-  }, []);
 
   const pickAndUploadLogo = async () => {
     try {
@@ -515,7 +506,7 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Subscription Row */}
+      {/* Subscription Row - only show for free users */}
       {quotaInfo && !quotaInfo.isSubscribed && (
         <TouchableOpacity
           style={[styles.subscriptionRow, { backgroundColor: isDark ? colors.gray[700] : colors.background.secondary }]}
@@ -525,18 +516,6 @@ export default function SettingsScreen() {
             {quotaInfo.quotesRemaining} of {getSubscriptionInfo().freeQuotesPerMonth} free quotes left
           </Text>
           <Text style={styles.upgradeLink}>Upgrade</Text>
-        </TouchableOpacity>
-      )}
-
-      {quotaInfo?.isSubscribed && (
-        <TouchableOpacity
-          style={[styles.subscriptionRow, { backgroundColor: isDark ? colors.gray[700] : colors.background.secondary }]}
-          onPress={handleManageSubscription}
-          activeOpacity={0.7}>
-          <Text style={[styles.subscriptionText, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
-            Pro Plan
-          </Text>
-          <Text style={[styles.manageLink, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>Manage</Text>
         </TouchableOpacity>
       )}
 
@@ -961,8 +940,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.primary.blue,
-  },
-  manageLink: {
-    fontSize: 14,
   },
 });
