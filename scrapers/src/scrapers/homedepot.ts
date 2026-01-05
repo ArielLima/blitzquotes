@@ -140,96 +140,70 @@ async function scrapeCategory(page: Page, category: CategoryConfig): Promise<Scr
       // Additional wait for dynamic content
       await delay(1000);
 
-      // Debug: save screenshot and HTML if enabled
+      // Debug: save screenshot if enabled
       if (options.debug) {
         const debugDir = './debug';
         const fs = await import('fs');
         if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir);
 
         const slug = category.name.toLowerCase().replace(/\s+/g, '-');
-        await page.screenshot({ path: `${debugDir}/${slug}-page${pageNum}.png`, fullPage: true });
-        const html = await page.content();
-        fs.writeFileSync(`${debugDir}/${slug}-page${pageNum}.html`, html);
-        console.log(`  Debug: saved screenshot and HTML to ${debugDir}/`);
+        await page.screenshot({ path: `${debugDir}/${slug}-page${pageNum}.png`, fullPage: false });
+        console.log(`  Debug: saved screenshot to ${debugDir}/${slug}-page${pageNum}.png`);
       }
 
       const pageItems = await page.evaluate((cat, baseUrl) => {
         const products: any[] = [];
 
-        // Try multiple selectors for product containers
-        // Home Depot uses various container patterns
-        let pods = document.querySelectorAll('[data-testid="product-pod"]');
-        if (pods.length === 0) {
-          // Fallback: find all product headers and get their parent containers
-          const headers = document.querySelectorAll('[data-testid="product-header"]');
-          pods = new Set<Element>();
-          headers.forEach(h => {
-            // Walk up to find the product card container
-            let parent = h.parentElement;
-            for (let i = 0; i < 5 && parent; i++) {
-              if (parent.querySelector('[data-testid="price-simple"]') ||
-                  parent.querySelector('[class*="price"]')) {
-                (pods as Set<Element>).add(parent);
-                break;
-              }
-              parent = parent.parentElement;
-            }
+        // Products are inside browse-search-pods containers
+        const containers = document.querySelectorAll('[id^="browse-search-pods"]');
+        let pods: Element[] = [];
+
+        if (containers.length > 0) {
+          containers.forEach(container => {
+            const containerPods = container.querySelectorAll('div.product-pod[data-product-id]');
+            pods.push(...Array.from(containerPods));
           });
-          pods = Array.from(pods as Set<Element>) as unknown as NodeListOf<Element>;
+        } else {
+          // Fallback: search entire page
+          pods = Array.from(document.querySelectorAll('div.product-pod[data-product-id]'));
         }
 
-        (Array.from(pods) as Element[]).forEach((pod) => {
+        pods.forEach((pod) => {
           try {
-            // Product name - multiple selector attempts
-            const nameEl = pod.querySelector('[data-testid="product-header"] span.sui-text-primary') ||
-                          pod.querySelector('[data-testid="product-header"] span') ||
-                          pod.querySelector('[data-testid="product-header"]');
-            const name = nameEl?.textContent?.trim();
+            // Get product ID directly from the pod
+            const sku = pod.getAttribute('data-product-id') || '';
 
-            // Price - updated selectors for new HD structure
-            // Try the new sui- based selectors first
+            // Product name: brand + label
+            const brand = pod.querySelector('[data-testid="attribute-brandname-inline"]')?.textContent?.trim() || '';
+            const label = pod.querySelector('[data-testid="attribute-product-label"]')?.textContent?.trim() || '';
+            const name = brand ? `${brand} ${label}` : label;
+
+            // Price from [data-testid="price-simple"]
+            // Structure: $<dollars>.<cents> where dollars is in sui-text-3xl/4xl span
             let priceText = '';
             const priceSimple = pod.querySelector('[data-testid="price-simple"]');
             if (priceSimple) {
-              // New format: sui-font-display classes
-              const dollars = priceSimple.querySelector('.sui-font-display, [class*="sui-text-4xl"], [class*="sui-text-3xl"]')?.textContent;
-              const cents = priceSimple.querySelector('[class*="sui-text-xs"], .sui-text-sm')?.textContent;
+              // Find the dollars span (has sui-text-3xl or sui-text-4xl class)
+              const dollarsEl = priceSimple.querySelector('[class*="sui-text-3xl"], [class*="sui-text-4xl"]');
+              const dollars = dollarsEl?.textContent?.trim() || '';
+
+              // Cents is the last sui-text-xs span in the price row
+              const priceRow = dollarsEl?.parentElement;
+              const spans = priceRow?.querySelectorAll('.sui-text-xs') || [];
+              const centsEl = spans[spans.length - 1];
+              const cents = centsEl?.textContent?.trim() || '00';
+
               if (dollars) {
-                priceText = cents ? `${dollars}.${cents.replace(/[^0-9]/g, '')}` : dollars;
+                priceText = `${dollars}.${cents.replace(/[^0-9]/g, '')}`;
               }
             }
 
-            // Fallback to old selectors
-            if (!priceText) {
-              const priceContainer = pod.querySelector('[data-testid="price-format"]');
-              if (priceContainer) {
-                const dollars = priceContainer.querySelector('.Price-dollars, [class*="Price"]')?.textContent;
-                const cents = priceContainer.querySelector('.Price-cents')?.textContent || '00';
-                if (dollars) {
-                  priceText = `${dollars}.${cents}`;
-                }
-              }
-            }
-
-            // Final fallback: any element with price-like content
-            if (!priceText) {
-              const anyPrice = pod.querySelector('[class*="price"], [class*="Price"]');
-              priceText = anyPrice?.textContent || '';
-            }
-
-            // SKU from product link or data attribute
-            const linkEl = pod.querySelector('[data-testid="product-header"] > a') ||
-                          pod.querySelector('a[href*="/p/"]');
+            // Product URL from the product header link
+            const linkEl = pod.querySelector('[data-testid="product-header"] a');
             const href = linkEl?.getAttribute('href') || '';
-            const productId = linkEl?.getAttribute('data-product-id') ||
-                             linkEl?.getAttribute('product-id') || '';
-            const skuMatch = href.match(/\/(\d+)(?:\?|$)/);
-            const sku = productId || (skuMatch ? skuMatch[1] : '');
 
-            // Unit info
-            const unitEl = pod.querySelector('[class*="unit"]') ||
-                          pod.querySelector('[class*="Unit"]') ||
-                          pod.querySelector('[data-testid*="unit"]');
+            // Unit info (often in price area, like "/each" or "/sq ft")
+            const unitEl = pod.querySelector('[class*="unit"]');
             const unitText = unitEl?.textContent || '';
 
             if (name && priceText) {
@@ -238,7 +212,7 @@ async function scrapeCategory(page: Page, category: CategoryConfig): Promise<Scr
                 priceText,
                 sku,
                 unitText,
-                url: href ? (href.startsWith('http') ? href : `${baseUrl}${href}`) : '',
+                url: href ? `${baseUrl}${href}` : '',
               });
             }
           } catch (e) {
