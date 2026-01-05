@@ -11,12 +11,14 @@ async function main() {
   const sourceArg = args.find(a => a.startsWith('--source='))?.split('=')[1];
   const testMode = args.includes('--test');
   const dryRun = args.includes('--dry-run');
+  const debug = args.includes('--debug');
 
   console.log('BlitzPrices Scraper');
   console.log('==================');
   console.log(`Source: ${sourceArg || 'all'}`);
   console.log(`Test mode: ${testMode}`);
   console.log(`Dry run: ${dryRun}`);
+  console.log(`Debug mode: ${debug}`);
   console.log('');
 
   // Check DB connection
@@ -78,9 +80,10 @@ async function main() {
   if (!sourceArg || sourceArg === 'homedepot') {
     console.log('Starting Home Depot scraper...\n');
 
-    const options = testMode
-      ? { maxCategories: 1 } // Just 1 category in test mode
-      : {};
+    const options = {
+      ...(testMode && { maxCategories: 1 }), // Just 1 category in test mode
+      debug,
+    };
 
     const result = await scrapeHomeDepot(onItem, options);
     stats.errors += result.errors;

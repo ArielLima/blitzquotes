@@ -53,7 +53,7 @@ function parsePrice(priceText: string): number | null {
 
 export async function scrapeHomeDepot(
   onItem: (item: ScrapedItem) => Promise<void>,
-  options: { maxCategories?: number; startCategory?: number } = {}
+  options: { maxCategories?: number; startCategory?: number; debug?: boolean } = {}
 ): Promise<{ total: number; errors: number }> {
   let browser: Browser | null = null;
   let total = 0;
@@ -127,7 +127,7 @@ async function scrapeCategory(page: Page, category: CategoryConfig): Promise<Scr
   let hasMore = true;
 
   while (hasMore && pageNum <= MAX_PAGES) {
-    const url = `${BASE_URL}${category.url}?Nao=${(pageNum - 1) * 24}`;
+    const url = `${BASE_URL}${category.url}?catStyle=ShowProducts&Nao=${(pageNum - 1) * 24}`;
     console.log(`  Page ${pageNum}: ${url}`);
 
     try {
@@ -139,6 +139,19 @@ async function scrapeCategory(page: Page, category: CategoryConfig): Promise<Scr
 
       // Additional wait for dynamic content
       await delay(1000);
+
+      // Debug: save screenshot and HTML if enabled
+      if (options.debug) {
+        const debugDir = './debug';
+        const fs = await import('fs');
+        if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir);
+
+        const slug = category.name.toLowerCase().replace(/\s+/g, '-');
+        await page.screenshot({ path: `${debugDir}/${slug}-page${pageNum}.png`, fullPage: true });
+        const html = await page.content();
+        fs.writeFileSync(`${debugDir}/${slug}-page${pageNum}.html`, html);
+        console.log(`  Debug: saved screenshot and HTML to ${debugDir}/`);
+      }
 
       const pageItems = await page.evaluate((cat, baseUrl) => {
         const products: any[] = [];
