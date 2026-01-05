@@ -1,6 +1,11 @@
-import puppeteer, { Browser, Page } from 'puppeteer';
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import { Browser, Page } from 'puppeteer';
 import { ScrapedItem } from '../types.js';
 import * as fs from 'fs';
+
+// Add stealth plugin to avoid bot detection
+puppeteer.use(StealthPlugin());
 
 // Departments to scrape - we'll navigate through the menu to find these
 const DEPARTMENTS = [
@@ -108,15 +113,14 @@ export async function scrapeHomeDepot(
   }
 
   try {
-    console.log('Launching browser...');
+    console.log('Launching browser with stealth mode...');
     browser = await puppeteer.launch({
-      headless: 'new',
+      headless: true,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu',
+        '--disable-blink-features=AutomationControlled',
         '--window-size=1920,1080',
       ],
     });
