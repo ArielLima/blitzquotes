@@ -65,6 +65,34 @@ function parsePrice(priceText: string): number | null {
   return isNaN(price) ? null : price;
 }
 
+// Helper to find and click element by text (since Puppeteer doesn't support :has-text)
+async function clickByText(page: Page, text: string, tag = 'a,button,p,span'): Promise<boolean> {
+  const clicked = await page.evaluate((searchText, tagSelector) => {
+    const elements = document.querySelectorAll(tagSelector);
+    for (const el of elements) {
+      if (el.textContent?.trim().toLowerCase().includes(searchText.toLowerCase())) {
+        (el as HTMLElement).click();
+        return true;
+      }
+    }
+    return false;
+  }, text, tag);
+  return clicked;
+}
+
+// Helper to find link by text and return href
+async function findLinkByText(page: Page, text: string): Promise<string | null> {
+  return await page.evaluate((searchText) => {
+    const links = document.querySelectorAll('a');
+    for (const link of links) {
+      if (link.textContent?.trim().toLowerCase().includes(searchText.toLowerCase())) {
+        return link.href;
+      }
+    }
+    return null;
+  }, text);
+}
+
 export async function scrapeHomeDepot(
   onItem: (item: ScrapedItem) => Promise<void>,
   options: { maxCategories?: number; startCategory?: number; debug?: boolean } = {}
@@ -165,29 +193,34 @@ async function scrapeDepartment(
 
     // Step 2: Click "Shop All" in the header
     console.log('  Step 2: Looking for Shop All button...');
-    const shopAllBtn = await page.waitForSelector('button:has-text("Shop All"), [data-testid="shop-all"], a:has-text("Shop All")', { timeout: 10000 }).catch(() => null);
-    if (shopAllBtn) {
-      console.log('    ✓ Found Shop All button, clicking...');
-      await shopAllBtn.click();
-      await delay(DELAY_MS);
+    const shopAllClicked = await clickByText(page, 'Shop All', 'button,a,p');
+    if (shopAllClicked) {
+      console.log('    ✓ Found Shop All button, clicked');
+      await delay(DELAY_MS * 2);
       console.log(`    Current URL: ${page.url()}`);
     } else {
       console.log('    ✗ Shop All button not found, continuing...');
     }
 
-    // Step 3: Look for and click "Shop by Department" or directly find the department
-    console.log(`  Step 3: Finding department "${dept.name}"...`);
+    // Step 3: Click "Shop by Department" then find the department
+    console.log('  Step 3: Looking for Shop by Department...');
+    const shopByDeptClicked = await clickByText(page, 'Shop by Department', 'a,button,p,span');
+    if (shopByDeptClicked) {
+      console.log('    ✓ Found Shop by Department, clicked');
+      await delay(DELAY_MS);
+    } else {
+      console.log('    ✗ Shop by Department not found, continuing...');
+    }
 
-    // Try to find the department link
-    console.log(`    Looking for: a:has-text("${dept.name}")`);
-    const deptLink = await page.$(`a:has-text("${dept.name}"), [data-testid*="${dept.name.toLowerCase().replace(/\s+/g, '-')}"]`);
-    if (deptLink) {
-      console.log('    ✓ Found department link, clicking...');
-      await deptLink.click();
+    // Step 4: Find and click the department
+    console.log(`  Step 4: Finding department "${dept.name}"...`);
+    const deptClicked = await clickByText(page, dept.name, 'a');
+    if (deptClicked) {
+      console.log(`    ✓ Found ${dept.name} link, clicked`);
       await delay(DELAY_MS * 2);
       console.log(`    Current URL: ${page.url()}`);
     } else {
-      // Fallback: Use search URL
+      // Fallback: Use direct URL
       const searchUrl = `${BASE_URL}/b/${dept.name.replace(/[,&]/g, '').replace(/\s+/g, '-')}/N-5yc1v`;
       console.log(`    ✗ Department link not found`);
       console.log(`    Using fallback URL: ${searchUrl}`);
@@ -195,23 +228,39 @@ async function scrapeDepartment(
       console.log(`    Current URL: ${page.url()}`);
     }
 
-    // Step 4: Click "Shop All {department}" if available to get full listing
-    console.log(`  Step 4: Looking for "Shop All ${dept.name}" link...`);
+    // Step 5: Click "Shop All {department}" if available to get full listing
+    console.log(`  Step 5: Looking for "Shop All ${dept.name}" link...`);
     await delay(DELAY_MS);
 
-    console.log('    Looking for: a:has-text("Shop All"), a[href*="catStyle=ShowProducts"]');
-    const shopAllDept = await page.$(`a:has-text("Shop All"), a[href*="catStyle=ShowProducts"]`);
+    // First try to find link with catStyle=ShowProducts
+    let shopAllDept = await page.$('a[href*="catStyle=ShowProducts"]');
     if (shopAllDept) {
-      console.log('    ✓ Found Shop All link, clicking...');
+      console.log('    ✓ Found catStyle=ShowProducts link, clicking...');
       await shopAllDept.click();
       await delay(DELAY_MS * 2);
       console.log(`    Current URL: ${page.url()}`);
     } else {
-      console.log('    ✗ Shop All link not found, continuing with current page...');
+      // Try clicking "Shop All" text link
+      const shopAllLink = await findLinkByText(page, `Shop All ${dept.name}`);
+      if (shopAllLink) {
+        console.log(`    ✓ Found "Shop All ${dept.name}" link: ${shopAllLink}`);
+        await page.goto(shopAllLink, { waitUntil: 'networkidle2', timeout: 60000 });
+        console.log(`    Current URL: ${page.url()}`);
+      } else {
+        // Last resort - try just "Shop All"
+        const anyShopAll = await findLinkByText(page, 'Shop All');
+        if (anyShopAll) {
+          console.log(`    ✓ Found generic "Shop All" link: ${anyShopAll}`);
+          await page.goto(anyShopAll, { waitUntil: 'networkidle2', timeout: 60000 });
+          console.log(`    Current URL: ${page.url()}`);
+        } else {
+          console.log('    ✗ No Shop All link found, continuing with current page...');
+        }
+      }
     }
 
     // Wait for product grid
-    console.log('  Step 5: Waiting for product grid...');
+    console.log('  Step 6: Waiting for product grid...');
     console.log('    Looking for: [data-testid="product-pod"], .product-pod, div[data-product-id]');
     const productGrid = await page.waitForSelector('[data-testid="product-pod"], .product-pod, div[data-product-id]', { timeout: 15000 }).catch(() => null);
     if (productGrid) {
