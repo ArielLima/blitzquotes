@@ -14,7 +14,6 @@ import {
   Modal,
   FlatList,
   Image,
-  Animated,
   BackHandler,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -90,9 +89,6 @@ export default function NewQuoteScreen() {
   const [loadingStep, setLoadingStep] = useState<'analyzing' | 'searching' | 'building' | null>(null);
   const [showAIModal, setShowAIModal] = useState(false);
 
-  // Animated values for loading modal
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-
   // Prevent back navigation during AI generation
   useEffect(() => {
     if (!showAIModal) return;
@@ -102,27 +98,7 @@ export default function NewQuoteScreen() {
       return true;
     });
 
-    // Pulse animation for the icon
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    pulse.start();
-
-    return () => {
-      backHandler.remove();
-      pulse.stop();
-    };
+    return () => backHandler.remove();
   }, [showAIModal]);
   const [notes, setNotes] = useState('');
   const [attachments, setAttachments] = useState<QuoteAttachment[]>([]);
@@ -913,98 +889,66 @@ export default function NewQuoteScreen() {
             </View>
           </Modal>
 
-          {/* AI Quote Generation Modal */}
-          <Modal
-            visible={showAIModal}
-            animationType="fade"
-            transparent={true}
-            onRequestClose={() => {/* Prevent closing */}}>
-            <View style={styles.aiModalOverlay}>
-              <View style={[styles.aiModalContent, { backgroundColor: isDark ? colors.background.secondaryDark : colors.background.secondary }]}>
-                <Animated.View style={[styles.aiModalIconContainer, { transform: [{ scale: pulseAnim }] }]}>
-                  <View style={styles.aiModalIconCircle}>
-                    <FontAwesome name="magic" size={32} color={colors.text.inverse} />
-                  </View>
-                </Animated.View>
+          {/* AI Quote Generation Full Screen */}
+          {showAIModal && (
+            <View style={[styles.aiLoadingScreen, { backgroundColor: isDark ? colors.background.primaryDark : colors.background.primary }]}>
+              <View style={styles.aiLoadingContent}>
+                <ActivityIndicator size="large" color={colors.primary.blue} style={styles.aiLoadingSpinner} />
 
-                <Text style={[styles.aiModalTitle, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
-                  Building Your Quote
+                <Text style={[styles.aiLoadingTitle, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
+                  {loadingStep === 'analyzing' && 'Analyzing requirements...'}
+                  {loadingStep === 'searching' && 'Searching prices...'}
+                  {loadingStep === 'building' && 'Building quote...'}
                 </Text>
 
-                <View style={styles.aiModalSteps}>
-                  <View style={styles.aiModalStep}>
-                    <View style={[
-                      styles.aiModalStepIcon,
-                      loadingStep === 'analyzing' && styles.aiModalStepIconActive,
-                      (loadingStep === 'searching' || loadingStep === 'building') && styles.aiModalStepIconDone,
-                    ]}>
-                      {(loadingStep === 'searching' || loadingStep === 'building') ? (
-                        <FontAwesome name="check" size={12} color={colors.text.inverse} />
-                      ) : loadingStep === 'analyzing' ? (
-                        <ActivityIndicator size="small" color={colors.text.inverse} />
-                      ) : (
-                        <Text style={styles.aiModalStepNumber}>1</Text>
-                      )}
-                    </View>
+                <View style={styles.aiLoadingSteps}>
+                  <View style={styles.aiLoadingStep}>
+                    <FontAwesome
+                      name={(loadingStep === 'searching' || loadingStep === 'building') ? 'check-circle' : 'circle-o'}
+                      size={16}
+                      color={(loadingStep === 'searching' || loadingStep === 'building') ? colors.status.success : (isDark ? colors.text.placeholderDark : colors.text.placeholder)}
+                    />
                     <Text style={[
-                      styles.aiModalStepText,
-                      loadingStep === 'analyzing' && styles.aiModalStepTextActive,
-                      { color: isDark ? colors.text.primaryDark : colors.text.primary }
+                      styles.aiLoadingStepText,
+                      (loadingStep === 'searching' || loadingStep === 'building') && styles.aiLoadingStepDone,
+                      { color: isDark ? colors.text.secondaryDark : colors.text.secondary }
                     ]}>
-                      Analyzing job requirements
+                      Analyze job description
                     </Text>
                   </View>
 
-                  <View style={styles.aiModalStep}>
-                    <View style={[
-                      styles.aiModalStepIcon,
-                      loadingStep === 'searching' && styles.aiModalStepIconActive,
-                      loadingStep === 'building' && styles.aiModalStepIconDone,
-                    ]}>
-                      {loadingStep === 'building' ? (
-                        <FontAwesome name="check" size={12} color={colors.text.inverse} />
-                      ) : loadingStep === 'searching' ? (
-                        <ActivityIndicator size="small" color={colors.text.inverse} />
-                      ) : (
-                        <Text style={styles.aiModalStepNumber}>2</Text>
-                      )}
-                    </View>
+                  <View style={styles.aiLoadingStep}>
+                    <FontAwesome
+                      name={loadingStep === 'building' ? 'check-circle' : 'circle-o'}
+                      size={16}
+                      color={loadingStep === 'building' ? colors.status.success : (isDark ? colors.text.placeholderDark : colors.text.placeholder)}
+                    />
                     <Text style={[
-                      styles.aiModalStepText,
-                      loadingStep === 'searching' && styles.aiModalStepTextActive,
-                      { color: isDark ? colors.text.primaryDark : colors.text.primary }
+                      styles.aiLoadingStepText,
+                      loadingStep === 'building' && styles.aiLoadingStepDone,
+                      { color: isDark ? colors.text.secondaryDark : colors.text.secondary }
                     ]}>
-                      Searching 50,000+ prices
+                      Search material prices
                     </Text>
                   </View>
 
-                  <View style={styles.aiModalStep}>
-                    <View style={[
-                      styles.aiModalStepIcon,
-                      loadingStep === 'building' && styles.aiModalStepIconActive,
-                    ]}>
-                      {loadingStep === 'building' ? (
-                        <ActivityIndicator size="small" color={colors.text.inverse} />
-                      ) : (
-                        <Text style={styles.aiModalStepNumber}>3</Text>
-                      )}
-                    </View>
+                  <View style={styles.aiLoadingStep}>
+                    <FontAwesome
+                      name="circle-o"
+                      size={16}
+                      color={isDark ? colors.text.placeholderDark : colors.text.placeholder}
+                    />
                     <Text style={[
-                      styles.aiModalStepText,
-                      loadingStep === 'building' && styles.aiModalStepTextActive,
-                      { color: isDark ? colors.text.primaryDark : colors.text.primary }
+                      styles.aiLoadingStepText,
+                      { color: isDark ? colors.text.secondaryDark : colors.text.secondary }
                     ]}>
-                      Building your quote
+                      Generate line items
                     </Text>
                   </View>
                 </View>
-
-                <Text style={[styles.aiModalHint, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
-                  This usually takes 10-15 seconds
-                </Text>
               </View>
             </View>
-          </Modal>
+          )}
         </KeyboardAvoidingView>
       </>
     );
@@ -2165,76 +2109,38 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     paddingHorizontal: 8,
   },
-  // AI Modal Styles
-  aiModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  // AI Loading Screen Styles
+  aiLoadingScreen: {
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    zIndex: 100,
   },
-  aiModalContent: {
-    width: '100%',
-    maxWidth: 320,
-    borderRadius: 20,
-    padding: 32,
+  aiLoadingContent: {
     alignItems: 'center',
+    paddingHorizontal: 32,
   },
-  aiModalIconContainer: {
+  aiLoadingSpinner: {
     marginBottom: 24,
   },
-  aiModalIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primary.blue,
-    justifyContent: 'center',
-    alignItems: 'center',
+  aiLoadingTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 32,
   },
-  aiModalTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 28,
-    textAlign: 'center',
+  aiLoadingSteps: {
+    gap: 12,
   },
-  aiModalSteps: {
-    width: '100%',
-    gap: 16,
-    marginBottom: 24,
-  },
-  aiModalStep: {
+  aiLoadingStep: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 10,
   },
-  aiModalStepIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.gray[300],
-    justifyContent: 'center',
-    alignItems: 'center',
+  aiLoadingStepText: {
+    fontSize: 14,
   },
-  aiModalStepIconActive: {
-    backgroundColor: colors.primary.blue,
-  },
-  aiModalStepIconDone: {
-    backgroundColor: colors.status.success,
-  },
-  aiModalStepNumber: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.gray[600],
-  },
-  aiModalStepText: {
-    fontSize: 15,
-    flex: 1,
-  },
-  aiModalStepTextActive: {
-    fontWeight: '600',
-  },
-  aiModalHint: {
-    fontSize: 13,
-    textAlign: 'center',
+  aiLoadingStepDone: {
+    textDecorationLine: 'line-through',
+    opacity: 0.6,
   },
 });
