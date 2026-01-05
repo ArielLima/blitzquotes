@@ -88,6 +88,13 @@ export default function NewQuoteScreen() {
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState<'analyzing' | 'searching' | 'building' | null>(null);
   const [showAIModal, setShowAIModal] = useState(false);
+  const isMountedRef = useRef(true);
+
+  // Track mounted state for async safety
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
 
   // Prevent back navigation during AI generation
   useEffect(() => {
@@ -230,6 +237,9 @@ export default function NewQuoteScreen() {
 
       if (error) throw error;
 
+      // Safety check - don't update state if unmounted
+      if (!isMountedRef.current) return;
+
       if (data?.items) {
         setLineItems(data.items.line_items || []);
         setLaborHours(data.items.labor_hours || 0);
@@ -242,11 +252,14 @@ export default function NewQuoteScreen() {
       }
     } catch (error: any) {
       clearInterval(progressTimer);
+      if (!isMountedRef.current) return;
       setShowAIModal(false);
       Alert.alert('Error', error.message || 'Failed to generate quote');
     } finally {
-      setLoading(false);
-      setLoadingStep(null);
+      if (isMountedRef.current) {
+        setLoading(false);
+        setLoadingStep(null);
+      }
     }
   };
 
@@ -667,9 +680,10 @@ export default function NewQuoteScreen() {
           options={{
             title: isEditing ? `Edit ${documentType}` : isDuplicating ? `Duplicate ${documentType}` : 'New Quote',
             gestureEnabled: !showAIModal,
+            headerShown: !showAIModal,
             headerLeft: () => (
-              <TouchableOpacity onPress={() => router.back()} style={styles.headerButton} disabled={showAIModal}>
-                <FontAwesome name="times" size={20} color={showAIModal ? colors.gray[400] : (isDark ? colors.text.primaryDark : colors.text.primary)} />
+              <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
+                <FontAwesome name="times" size={20} color={isDark ? colors.text.primaryDark : colors.text.primary} />
               </TouchableOpacity>
             ),
           }}
