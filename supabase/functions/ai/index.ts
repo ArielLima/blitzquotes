@@ -140,6 +140,17 @@ async function searchBlitzPrices(query: string, region: string): Promise<BlitzPr
     return [];
   }
 
+  // Log search miss if no results found
+  if (!data || data.length === 0) {
+    await supabase.rpc('log_search_miss', {
+      p_query: query,
+      p_region: region || 'US',
+      p_category: null,
+      p_source: 'quote_generation',
+      p_user_id: null,
+    }).catch((err: any) => console.error('Failed to log search miss:', err.message));
+  }
+
   return data || [];
 }
 

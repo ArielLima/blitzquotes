@@ -30,10 +30,10 @@ interface SubmitParams {
 }
 
 // Search BlitzPrices database
-async function searchPrices(params: SearchParams) {
+async function searchPrices(params: SearchParams & { user_id?: string }) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  const { query, region, category, limit = 10 } = params;
+  const { query, region, category, limit = 10, user_id } = params;
 
   if (!query || !region) {
     throw new Error('query and region are required');
@@ -54,6 +54,17 @@ async function searchPrices(params: SearchParams) {
   }
 
   const hasMatch = data && data.length > 0;
+
+  // Log search miss if no results found
+  if (!hasMatch) {
+    await supabase.rpc('log_search_miss', {
+      p_query: query,
+      p_region: region.toUpperCase(),
+      p_category: category || null,
+      p_source: 'direct_search',
+      p_user_id: user_id || null,
+    }).catch((err: any) => console.error('Failed to log search miss:', err.message));
+  }
 
   return {
     query,
