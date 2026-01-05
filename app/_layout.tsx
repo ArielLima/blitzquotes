@@ -16,6 +16,11 @@ import {
   setupNotificationListeners,
   clearPushToken,
 } from '@/lib/notifications';
+import {
+  initializeRevenueCat,
+  loginRevenueCat,
+  logoutRevenueCat,
+} from '@/lib/revenuecat';
 
 export {
   ErrorBoundary,
@@ -59,6 +64,9 @@ function RootLayoutNav() {
   useEffect(() => {
     initialize();
 
+    // Initialize RevenueCat
+    initializeRevenueCat().catch(console.error);
+
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -67,9 +75,13 @@ function RootLayoutNav() {
           if (user?.id) {
             clearPushToken(user.id);
           }
+          // Log out from RevenueCat
+          await logoutRevenueCat();
           setUser(null);
         } else if (session?.user) {
           setUser(session.user);
+          // Log in to RevenueCat with user ID
+          await loginRevenueCat(session.user.id).catch(console.error);
           // Fetch settings to determine if onboarded (for returning users)
           const { fetchSettings } = useStore.getState();
           await fetchSettings();

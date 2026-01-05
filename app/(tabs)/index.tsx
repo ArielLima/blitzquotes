@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,12 +9,15 @@ import {
   TextInput,
   ScrollView,
   Modal,
+  Alert,
 } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useStore, DATE_RANGE_OPTIONS, type DateRange } from '@/lib/store';
 import { formatCurrency, timeAgo, getStatusColor, getStatusLabel } from '@/lib/utils';
 import { colors } from '@/lib/colors';
+import { checkQuota, type QuotaInfo } from '@/lib/subscription';
+import PaywallModal from '@/components/PaywallModal';
 import type { Quote } from '@/types';
 
 type FilterType = 'all' | 'draft' | 'sent' | 'viewed';
@@ -145,10 +148,40 @@ function EmptyState({ filter }: { filter: FilterType }) {
 export default function QuotesScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const { quotes, dateRange, setDateRange } = useStore();
+  const { quotes, dateRange, setDateRange, user } = useStore();
   const [filter, setFilter] = useState<FilterType>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [quotaInfo, setQuotaInfo] = useState<QuotaInfo | null>(null);
+
+  const handleNewQuote = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      const quota = await checkQuota(user.id);
+      setQuotaInfo(quota);
+
+      if (quota.canCreateQuote) {
+        router.push('/quote/new');
+      } else {
+        setShowPaywall(true);
+      }
+    } catch (error) {
+      // On error, allow creating quote (fail open)
+      console.error('Quota check failed:', error);
+      router.push('/quote/new');
+    }
+  }, [user]);
+
+  const handleSubscribe = useCallback(() => {
+    // TODO: Integrate with RevenueCat or App Store
+    Alert.alert(
+      'Coming Soon',
+      'Subscription will be available when the app launches. For now, enjoy unlimited quotes!',
+      [{ text: 'OK', onPress: () => setShowPaywall(false) }]
+    );
+  }, []);
 
   // Only show pending quotes (draft, sent, viewed) - not jobs (approved, invoiced, paid)
   const quotesOnly = useMemo(() => {
@@ -277,11 +310,9 @@ export default function QuotesScreen() {
         />
       )}
 
-      <Link href="/quote/new" asChild>
-        <TouchableOpacity style={styles.fab}>
-          <FontAwesome name="plus" size={24} color={colors.text.inverse} />
-        </TouchableOpacity>
-      </Link>
+      <TouchableOpacity style={styles.fab} onPress={handleNewQuote}>
+        <FontAwesome name="plus" size={24} color={colors.text.inverse} />
+      </TouchableOpacity>
 
       {/* Date Range Picker Modal */}
       <Modal
@@ -323,6 +354,14 @@ export default function QuotesScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Paywall Modal */}
+      <PaywallModal
+        visible={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        onSubscribe={handleSubscribe}
+        quotesUsed={quotaInfo?.quotesUsed || 0}
+      />
     </View>
   );
 }

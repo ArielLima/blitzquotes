@@ -71,6 +71,8 @@ export interface Quote {
 
 export type PaymentMethod = 'stripe' | 'venmo' | 'paypal' | 'zelle' | 'cashapp' | 'square' | 'none';
 
+export type SubscriptionStatus = 'free' | 'active' | 'canceled';
+
 export type Trade = 'plumbing' | 'hvac' | 'electrical' | 'general';
 
 export interface UserSettings {
@@ -105,6 +107,9 @@ export interface UserSettings {
 
   // Push notifications
   push_token?: string;  // Expo Push Token
+
+  // Subscription
+  subscription_status: SubscriptionStatus;  // 'free' = 3 quotes/month, 'active' = unlimited
 
   created_at: string;
   updated_at: string;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -22,6 +22,9 @@ import { colors } from '@/lib/colors';
 import { PAYMENT_METHODS } from '@/lib/payments';
 import { getRegions } from '@/lib/blitzprices';
 import { formatPhone } from '@/lib/utils';
+import { checkQuota, getSubscriptionInfo, type QuotaInfo } from '@/lib/subscription';
+import PaywallModal from '@/components/PaywallModal';
+import RevenueCatUI from 'react-native-purchases-ui';
 
 // Edit Modal Component
 function EditModal({
@@ -298,6 +301,33 @@ export default function SettingsScreen() {
   const [statePickerVisible, setStatePickerVisible] = useState(false);
   const [paymentPickerVisible, setPaymentPickerVisible] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [quotaInfo, setQuotaInfo] = useState<QuotaInfo | null>(null);
+
+  // Fetch quota info on mount
+  useEffect(() => {
+    if (user) {
+      checkQuota(user.id).then(setQuotaInfo).catch(console.error);
+    }
+  }, [user]);
+
+  const handleSubscribe = useCallback(async () => {
+    // Refresh quota info after successful subscription
+    if (user) {
+      const updatedQuota = await checkQuota(user.id);
+      setQuotaInfo(updatedQuota);
+    }
+    setShowPaywall(false);
+  }, [user]);
+
+  const handleManageSubscription = useCallback(async () => {
+    try {
+      await RevenueCatUI.presentCustomerCenter();
+    } catch (error) {
+      console.error('Failed to open customer center:', error);
+      Alert.alert('Error', 'Unable to open subscription management. Please try again.');
+    }
+  }, []);
 
   const pickAndUploadLogo = async () => {
     try {
@@ -485,6 +515,56 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Subscription Card */}
+      {quotaInfo && !quotaInfo.isSubscribed && (
+        <TouchableOpacity
+          style={[styles.subscriptionCard, { backgroundColor: isDark ? colors.gray[700] : colors.background.secondary }]}
+          onPress={() => setShowPaywall(true)}
+          activeOpacity={0.7}>
+          <View style={styles.subscriptionLeft}>
+            <View style={[styles.subscriptionIcon, { backgroundColor: colors.primary.blue + '20' }]}>
+              <FontAwesome name="bolt" size={18} color={colors.primary.blue} />
+            </View>
+            <View>
+              <Text style={[styles.subscriptionTitle, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
+                Free Plan
+              </Text>
+              <Text style={[styles.subscriptionSubtitle, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
+                {quotaInfo.quotesRemaining} of {getSubscriptionInfo().freeQuotesPerMonth} quotes left this month
+              </Text>
+            </View>
+          </View>
+          <View style={styles.upgradeButton}>
+            <Text style={styles.upgradeButtonText}>Upgrade</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {quotaInfo?.isSubscribed && (
+        <TouchableOpacity
+          style={[styles.subscriptionCard, { backgroundColor: isDark ? colors.gray[700] : colors.background.secondary }]}
+          onPress={handleManageSubscription}
+          activeOpacity={0.7}>
+          <View style={styles.subscriptionLeft}>
+            <View style={[styles.subscriptionIcon, { backgroundColor: colors.status.success + '20' }]}>
+              <FontAwesome name="check" size={18} color={colors.status.success} />
+            </View>
+            <View>
+              <Text style={[styles.subscriptionTitle, { color: isDark ? colors.text.primaryDark : colors.text.primary }]}>
+                Pro Plan
+              </Text>
+              <Text style={[styles.subscriptionSubtitle, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>
+                Unlimited quotes
+              </Text>
+            </View>
+          </View>
+          <View style={styles.manageButton}>
+            <Text style={[styles.manageButtonText, { color: isDark ? colors.text.secondaryDark : colors.text.secondary }]}>Manage</Text>
+            <FontAwesome name="chevron-right" size={12} color={isDark ? colors.text.secondaryDark : colors.text.secondary} />
+          </View>
+        </TouchableOpacity>
+      )}
+
       <SectionHeader title="CONTACT" />
       <View style={styles.section}>
         <SettingsRow
@@ -646,6 +726,14 @@ export default function SettingsScreen() {
         options={paymentOptions}
         selected={settings?.payment_method || 'none'}
         onSelect={(value) => updateSetting('payment_method', value)}
+      />
+
+      {/* Paywall Modal */}
+      <PaywallModal
+        visible={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        onSubscribe={handleSubscribe}
+        quotesUsed={quotaInfo?.quotesUsed || 0}
       />
     </ScrollView>
   );
@@ -879,5 +967,55 @@ const styles = StyleSheet.create({
   },
   pickerOptionText: {
     fontSize: 16,
+  },
+  // Subscription card styles
+  subscriptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 14,
+    borderRadius: 12,
+  },
+  subscriptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  subscriptionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  subscriptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  subscriptionSubtitle: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  upgradeButton: {
+    backgroundColor: colors.primary.blue,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  upgradeButtonText: {
+    color: colors.text.inverse,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  manageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  manageButtonText: {
+    fontSize: 14,
   },
 });
