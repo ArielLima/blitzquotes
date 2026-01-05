@@ -186,6 +186,22 @@ async function scrapeDepartment(
   let total = 0;
   let errors = 0;
 
+  // Debug screenshot helper
+  const debugDir = './debug';
+  if (options.debug && !fs.existsSync(debugDir)) {
+    fs.mkdirSync(debugDir);
+  }
+  const slug = dept.name.toLowerCase().replace(/\s+/g, '-');
+  let stepNum = 0;
+  const screenshot = async (name: string) => {
+    if (options.debug) {
+      stepNum++;
+      const filename = `${debugDir}/${slug}-${stepNum.toString().padStart(2, '0')}-${name}.png`;
+      await page.screenshot({ path: filename, fullPage: false });
+      console.log(`    📸 Saved: ${filename}`);
+    }
+  };
+
   try {
     // Step 1: Navigate to Home Depot
     console.log('  Step 1: Going to Home Depot...');
@@ -193,6 +209,7 @@ async function scrapeDepartment(
     await page.goto(BASE_URL, { waitUntil: 'networkidle2', timeout: 60000 });
     console.log('    ✓ Page loaded');
     console.log(`    Current URL: ${page.url()}`);
+    await screenshot('homepage');
     await delay(DELAY_MS);
 
     // Step 2: Click "Shop All" in the header
@@ -205,6 +222,7 @@ async function scrapeDepartment(
     } else {
       console.log('    ✗ Shop All button not found, continuing...');
     }
+    await screenshot('after-shop-all');
 
     // Step 3: Click "Shop by Department" then find the department
     console.log('  Step 3: Looking for Shop by Department...');
@@ -215,6 +233,7 @@ async function scrapeDepartment(
     } else {
       console.log('    ✗ Shop by Department not found, continuing...');
     }
+    await screenshot('after-shop-by-dept');
 
     // Step 4: Find and click the department
     console.log(`  Step 4: Finding department "${dept.name}"...`);
@@ -231,6 +250,7 @@ async function scrapeDepartment(
       await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 60000 });
       console.log(`    Current URL: ${page.url()}`);
     }
+    await screenshot('after-dept-click');
 
     // Step 5: Click "Shop All {department}" if available to get full listing
     console.log(`  Step 5: Looking for "Shop All ${dept.name}" link...`);
@@ -262,6 +282,7 @@ async function scrapeDepartment(
         }
       }
     }
+    await screenshot('after-shop-all-dept');
 
     // Wait for product grid
     console.log('  Step 6: Waiting for product grid...');
@@ -272,14 +293,7 @@ async function scrapeDepartment(
     } else {
       console.log('    ✗ Product grid NOT found - page might be blocked or different structure');
     }
-
-    if (options.debug) {
-      const debugDir = './debug';
-      if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir);
-      const slug = dept.name.toLowerCase().replace(/\s+/g, '-');
-      await page.screenshot({ path: `${debugDir}/${slug}-listing.png`, fullPage: false });
-      console.log(`  Debug: saved screenshot`);
-    }
+    await screenshot('product-grid');
 
     // Step 5: Scrape products - iterate through pages
     let currentPage = options.startPage || 1;
